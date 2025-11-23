@@ -2,6 +2,19 @@
 
 这是一个 BepInEx 插件，用于使《Chill With You》游戏正确在 Wallpaper Engine 环境下运行。
 
+## 🐛 遇到问题？
+
+**请提供日志文件以便排查！**
+
+日志文件位置：
+```
+F:\SteamLibrary\steamapps\common\wallpaper_engine\projects\myprojects\chill_with_you\BepInEx\LogOutput.log
+```
+
+提交 Issue 时请附带此日志文件，否则可能无法定位问题！
+
+---
+
 ## ✨ 主要功能
 
 - **🎮 离线模式运行**：无需 Steam 即可启动游戏
