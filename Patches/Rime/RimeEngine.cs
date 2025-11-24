@@ -70,27 +70,49 @@ namespace ChillPatcher.Rime
             if (_sessionId == 0)
                 throw new Exception("创建Rime Session失败");
 
-            // 检查状态
-            var status = RimeApi.RimeStatus.Create();
-            if (RimeApi.RimeGetStatus(_sessionId, ref status))
+            // 检查状态（使用手动内存管理）
+            IntPtr statusBuffer = IntPtr.Zero;
+            try
             {
-                try
+                int bufferSize = 256;
+                statusBuffer = Marshal.AllocHGlobal(bufferSize);
+                
+                // 清零内存
+                unsafe
                 {
+                    byte* p = (byte*)statusBuffer;
+                    for (int i = 0; i < bufferSize; i++) p[i] = 0;
+                }
+                
+                // 写入 DataSize
+                int structSize = Marshal.SizeOf<RimeApi.RimeStatus>();
+                Marshal.WriteInt32(statusBuffer, structSize - sizeof(int));
+                
+                if (RimeApi.RimeGetStatus(_sessionId, statusBuffer))
+                {
+                    var status = Marshal.PtrToStructure<RimeApi.RimeStatus>(statusBuffer);
+                    
                     string schemaId = status.SchemaId != IntPtr.Zero ? Marshal.PtrToStringAnsi(status.SchemaId) : "null";
                     string schemaName = status.SchemaName != IntPtr.Zero ? Marshal.PtrToStringAnsi(status.SchemaName) : "null";
                     Plugin.Logger.LogInfo($"[Rime] 初始化状态检查成功 - Schema: {schemaId}/{schemaName}, ASCII: {status.IsAsciiMode}, Composing: {status.IsComposing}");
-                }
-                finally
-                {
+                    
+                    // 释放 Rime 内部分配的内存
                     if (status.SchemaId != IntPtr.Zero || status.SchemaName != IntPtr.Zero)
                     {
-                        RimeApi.RimeFreeStatus(ref status);
+                        RimeApi.RimeFreeStatus(statusBuffer);
                     }
                 }
+                else
+                {
+                    Plugin.Logger.LogWarning("[Rime] 初始化状态检查失败");
+                }
             }
-            else
+            finally
             {
-                Plugin.Logger.LogWarning("[Rime] 初始化状态检查失败");
+                if (statusBuffer != IntPtr.Zero)
+                {
+                    Marshal.FreeHGlobal(statusBuffer);
+                }
             }
 
             _initialized = true;
@@ -123,15 +145,32 @@ namespace ChillPatcher.Rime
         {
             if (!_initialized) return null;
 
+            IntPtr buffer = IntPtr.Zero;
             try
             {
-                // 初始化 context 结构体 (RIME_STRUCT_INIT)
-                var context = RimeApi.RimeContext.Create();
+                // 手动分配堆内存（512字节，足够容纳结构体并留出安全边界）
+                int bufferSize = 512;
+                buffer = Marshal.AllocHGlobal(bufferSize);
                 
-                if (!RimeApi.RimeGetContext(_sessionId, ref context))
+                // 清零内存
+                unsafe
                 {
-                    return null; // 静默失败,避免每帧日志刷屏
+                    byte* p = (byte*)buffer;
+                    for (int i = 0; i < bufferSize; i++) p[i] = 0;
                 }
+                
+                // 写入 DataSize（Rime API 需要这个字段来识别结构体版本）
+                int structSize = Marshal.SizeOf<RimeApi.RimeContext>();
+                Marshal.WriteInt32(buffer, structSize - sizeof(int));
+                
+                // 调用 Rime API，传递指针而非 ref struct
+                if (!RimeApi.RimeGetContext(_sessionId, buffer))
+                {
+                    return null; // 静默失败,避免日志刷屏
+                }
+
+                // 从内存读取结构体
+                var context = Marshal.PtrToStructure<RimeApi.RimeContext>(buffer);
 
                 try
                 {
@@ -146,16 +185,37 @@ namespace ChillPatcher.Rime
                         Candidates = new List<CandidateInfo>()
                     };
 
+                    // 边界检查（防御性编程，防止内存越界）
+                    int numCandidates = context.Menu.NumCandidates;
+                    
+                    if (numCandidates < 0)
+                    {
+                        Plugin.Logger.LogWarning($"[Rime] 负数候选词: {numCandidates}，已重置为 0");
+                        numCandidates = 0;
+                    }
+                    else if (numCandidates > 10)  // 10 覆盖所有常见配置（默认 5，最大 9）
+                    {
+                        Plugin.Logger.LogWarning($"[Rime] 候选词过多: {numCandidates}，截断为 10");
+                        numCandidates = 10;
+                    }
+                    
+                    // 指针有效性检查
+                    if (numCandidates > 0 && context.Menu.Candidates == IntPtr.Zero)
+                    {
+                        Plugin.Logger.LogWarning($"[Rime] 候选词指针为空但数量为 {numCandidates}，已重置为 0");
+                        numCandidates = 0;
+                    }
+
                     var candidates = RimeApi.GetCandidates(
                         context.Menu.Candidates,
-                        context.Menu.NumCandidates);
+                        numCandidates);  // 使用检查后的安全值
 
                     foreach (var candidate in candidates)
                     {
                         info.Candidates.Add(new CandidateInfo
                         {
-                            Text = candidate.Text ?? string.Empty,
-                            Comment = candidate.Comment ?? string.Empty
+                            Text = RimeApi.GetCandidateText(candidate),
+                            Comment = RimeApi.GetCandidateComment(candidate)
                         });
                     }
 
@@ -163,8 +223,8 @@ namespace ChillPatcher.Rime
                 }
                 finally
                 {
-                    // 正确释放 context 内存
-                    RimeApi.RimeFreeContext(ref context);
+                    // 释放 Rime 内部分配的内存（preedit、candidates等）
+                    RimeApi.RimeFreeContext(buffer);
                 }
             }
             catch (AccessViolationException ex)
@@ -177,6 +237,14 @@ namespace ChillPatcher.Rime
             {
                 Plugin.Logger.LogError($"[Rime] GetContext异常(已隔离): {ex.GetType().Name}: {ex.Message}");
                 return null;
+            }
+            finally
+            {
+                // 释放我们手动分配的堆内存
+                if (buffer != IntPtr.Zero)
+                {
+                    Marshal.FreeHGlobal(buffer);
+                }
             }
         }
 
@@ -204,11 +272,29 @@ namespace ChillPatcher.Rime
         {
             if (!_initialized) return null;
 
+            IntPtr buffer = IntPtr.Zero;
             try
             {
-                var commit = RimeApi.RimeCommit.Create();
-                if (!RimeApi.RimeGetCommit(_sessionId, ref commit))
+                // 手动分配堆内存
+                int bufferSize = 256;
+                buffer = Marshal.AllocHGlobal(bufferSize);
+                
+                // 清零内存
+                unsafe
+                {
+                    byte* p = (byte*)buffer;
+                    for (int i = 0; i < bufferSize; i++) p[i] = 0;
+                }
+                
+                // 写入 DataSize
+                int structSize = Marshal.SizeOf<RimeApi.RimeCommit>();
+                Marshal.WriteInt32(buffer, structSize - sizeof(int));
+                
+                if (!RimeApi.RimeGetCommit(_sessionId, buffer))
                     return null;
+
+                // 从内存读取结构体
+                var commit = Marshal.PtrToStructure<RimeApi.RimeCommit>(buffer);
 
                 try
                 {
@@ -220,8 +306,8 @@ namespace ChillPatcher.Rime
                 }
                 finally
                 {
-                    // 正确释放内存 (librime 用 new char[] 分配,用 delete[] 释放)
-                    RimeApi.RimeFreeCommit(ref commit);
+                    // 释放 Rime 内部分配的内存
+                    RimeApi.RimeFreeCommit(buffer);
                 }
             }
             catch (AccessViolationException ex)
@@ -234,6 +320,14 @@ namespace ChillPatcher.Rime
             {
                 Plugin.Logger.LogError($"[Rime] GetCommit异常(已隔离): {ex.GetType().Name}: {ex.Message}");
                 return null;
+            }
+            finally
+            {
+                // 释放我们手动分配的堆内存
+                if (buffer != IntPtr.Zero)
+                {
+                    Marshal.FreeHGlobal(buffer);
+                }
             }
         }
 

@@ -53,9 +53,9 @@ namespace ChillPatcher.Rime
         [StructLayout(LayoutKind.Sequential)]
         public struct RimeCandidate
         {
-            [MarshalAs(UnmanagedType.LPStr)] public string Text;
-            [MarshalAs(UnmanagedType.LPStr)] public string Comment;
-            public IntPtr Reserved;
+            public IntPtr Text;     // char* - 手动 marshal
+            public IntPtr Comment;  // char* - 手动 marshal
+            public IntPtr Reserved; // void*
         }
 
         [StructLayout(LayoutKind.Sequential)]
@@ -66,8 +66,8 @@ namespace ChillPatcher.Rime
             public int IsLastPage;  // Bool → int (librime 中 Bool 是 int)
             public int HighlightedCandidateIndex;
             public int NumCandidates;
-            public IntPtr Candidates;
-            [MarshalAs(UnmanagedType.LPStr)] public string SelectKeys;
+            public IntPtr Candidates;  // RimeCandidate* - 必须是指针
+            public IntPtr SelectKeys;  // char* - 改为 IntPtr，避免自动 marshal
         }
 
         [StructLayout(LayoutKind.Sequential)]
@@ -102,6 +102,13 @@ namespace ChillPatcher.Rime
             }
         }
 
+        /// <summary>
+        /// Rime 状态结构体
+        /// 注意：
+        /// 1. Bool 在 librime 中定义为 int (4字节)，不是 C# 的 bool (1字节)
+        /// 2. 结构体自动对齐到 8 字节边界（最大字段 IntPtr 的大小）
+        /// 3. 实际大小：4 + 4(padding) + 8 + 8 + 7*4 + 4(padding) = 56 字节
+        /// </summary>
         [StructLayout(LayoutKind.Sequential)]
         public struct RimeStatus
         {
@@ -116,6 +123,7 @@ namespace ChillPatcher.Rime
             public int IsSimplified;    // Bool → int
             public int IsTraditional;   // Bool → int
             public int IsAsciiPunct;    // Bool → int
+            // 结构体末尾会自动 padding 4 字节对齐到 8 字节边界
 
             public static RimeStatus Create()
             {
@@ -166,19 +174,19 @@ namespace ChillPatcher.Rime
 
         [DllImport(RimeDll, CallingConvention = CallingConvention.Cdecl)]
         [return: MarshalAs(UnmanagedType.I1)]
-        public static extern bool RimeGetCommit(ulong sessionId, ref RimeCommit commit);
+        public static extern bool RimeGetCommit(ulong sessionId, IntPtr commit);
 
         [DllImport(RimeDll, CallingConvention = CallingConvention.Cdecl)]
         [return: MarshalAs(UnmanagedType.I1)]
-        public static extern bool RimeFreeCommit(ref RimeCommit commit);
+        public static extern bool RimeFreeCommit(IntPtr commit);
 
         [DllImport(RimeDll, CallingConvention = CallingConvention.Cdecl)]
         [return: MarshalAs(UnmanagedType.I1)]
-        public static extern bool RimeGetContext(ulong sessionId, ref RimeContext context);
+        public static extern bool RimeGetContext(ulong sessionId, IntPtr context);
 
         [DllImport(RimeDll, CallingConvention = CallingConvention.Cdecl)]
         [return: MarshalAs(UnmanagedType.I1)]
-        public static extern bool RimeFreeContext(ref RimeContext context);
+        public static extern bool RimeFreeContext(IntPtr context);
 
         [DllImport(RimeDll, CallingConvention = CallingConvention.Cdecl)]
         public static extern void RimeSetOption(ulong sessionId, string option, [MarshalAs(UnmanagedType.I1)] bool value);
@@ -189,11 +197,11 @@ namespace ChillPatcher.Rime
 
         [DllImport(RimeDll, CallingConvention = CallingConvention.Cdecl)]
         [return: MarshalAs(UnmanagedType.I1)]
-        public static extern bool RimeGetStatus(ulong sessionId, ref RimeStatus status);
+        public static extern bool RimeGetStatus(ulong sessionId, IntPtr status);
 
         [DllImport(RimeDll, CallingConvention = CallingConvention.Cdecl)]
         [return: MarshalAs(UnmanagedType.I1)]
-        public static extern bool RimeFreeStatus(ref RimeStatus status);
+        public static extern bool RimeFreeStatus(IntPtr status);
 
         [DllImport(RimeDll, CallingConvention = CallingConvention.Cdecl)]
         [return: MarshalAs(UnmanagedType.I1)]
@@ -218,6 +226,26 @@ namespace ChillPatcher.Rime
             }
 
             return candidates;
+        }
+        
+        /// <summary>
+        /// 辅助方法：从 RimeCandidate 中提取文本（手动 marshal）
+        /// </summary>
+        public static string GetCandidateText(RimeCandidate candidate)
+        {
+            return candidate.Text != IntPtr.Zero 
+                ? Marshal.PtrToStringAnsi(candidate.Text) ?? string.Empty 
+                : string.Empty;
+        }
+        
+        /// <summary>
+        /// 辅助方法：从 RimeCandidate 中提取注释（手动 marshal）
+        /// </summary>
+        public static string GetCandidateComment(RimeCandidate candidate)
+        {
+            return candidate.Comment != IntPtr.Zero 
+                ? Marshal.PtrToStringAnsi(candidate.Comment) ?? string.Empty 
+                : string.Empty;
         }
     }
 }

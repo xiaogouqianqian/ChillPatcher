@@ -32,6 +32,10 @@ namespace ChillPatcher.Patches
         private static bool useRime = false;
         private static bool _debugFirstKey = true;  // 调试标志
         
+        // 双缓冲 Context - 线程安全设计
+        private static RimeContextInfo cachedRimeContext = null;
+        private static readonly object rimeContextCacheLock = new object();
+        
         // 崩溃保护和自动重启
         private static int restartCount = 0;
         private static readonly int maxRestartAttempts = 5;
@@ -353,7 +357,7 @@ namespace ChillPatcher.Patches
         }
 
         /// <summary>
-        /// 使用Rime处理按键 - 带异常隔离
+        /// 使用Rime处理按键 - 带异常隔离和 Context 缓存更新
         /// </summary>
         private static void ProcessKeyWithRime(uint vkCode)
         {
@@ -395,6 +399,10 @@ namespace ChillPatcher.Patches
                             Plugin.Logger.LogInfo($"[Rime] 提交文本: {commit}");
                         }
                     }
+                    
+                    // 更新缓存的 Context（在 Hook 线程中调用 Rime API）
+                    UpdateCachedRimeContext();
+                    
                     // Rime处理了,不再传递给简单模式
                     return;
                 }
@@ -413,6 +421,31 @@ namespace ChillPatcher.Patches
                 Plugin.Logger.LogError($"[Rime] 处理按键异常(已隔离): {ex.GetType().Name}: {ex.Message}");
                 // 不重启Rime,继续尝试使用(可能只是偶发异常)
                 ProcessKeySimple(vkCode); // 降级处理这个按键
+            }
+        }
+        
+        /// <summary>
+        /// 更新缓存的 Rime Context（仅在 Hook 线程调用）
+        /// </summary>
+        private static void UpdateCachedRimeContext()
+        {
+            if (!useRime || rimeEngine == null)
+                return;
+            
+            try
+            {
+                // 在 Hook 线程中调用 Rime API 获取最新 Context
+                var newContext = rimeEngine.GetContext();
+                
+                // 原子替换缓存（双缓冲）
+                lock (rimeContextCacheLock)
+                {
+                    cachedRimeContext = newContext;
+                }
+            }
+            catch (Exception ex)
+            {
+                Plugin.Logger.LogError($"[Rime] 更新Context缓存异常: {ex.GetType().Name}: {ex.Message}");
             }
         }
 
@@ -510,6 +543,10 @@ namespace ChillPatcher.Patches
             {
                 Plugin.Logger.LogInfo("[Rime] 正在初始化引擎...");
                 
+                // 验证结构体对齐和大小
+                StructSizeValidator.ValidateStructSizes();
+                StructSizeValidator.DumpFieldOffsets();
+                
                 string sharedData = RimeConfigManager.GetSharedDataDirectory();
                 string userData = RimeConfigManager.GetUserDataDirectory();
                 
@@ -542,6 +579,7 @@ namespace ChillPatcher.Patches
 
         /// <summary>
         /// 获取Rime上下文（preedit和候选词）
+        /// 线程安全：从缓存读取，不直接调用 Rime API（避免多线程竞态）
         /// </summary>
         public static RimeContextInfo GetRimeContext()
         {
@@ -550,7 +588,11 @@ namespace ChillPatcher.Patches
             
             try
             {
-                return rimeEngine.GetContext();
+                // 从缓存读取（Unity 主线程）
+                lock (rimeContextCacheLock)
+                {
+                    return cachedRimeContext;
+                }
             }
             catch (Exception ex)
             {
@@ -615,6 +657,12 @@ namespace ChillPatcher.Patches
                 if (useRime && rimeEngine != null)
                 {
                     rimeEngine.ClearComposition();
+                }
+                
+                // 清空缓存的 Context
+                lock (rimeContextCacheLock)
+                {
+                    cachedRimeContext = null;
                 }
             }
             catch (Exception ex)
@@ -843,8 +891,8 @@ namespace ChillPatcher.Patches
                     }
                 }
                 
-                // 只在Hook触发更新或已在preedit模式时调用GetRimeContext
-                if (shouldUpdateRime || state.inPreeditMode)
+                // 只在Hook触发更新时调用GetRimeContext(按键后更新一次)
+                if (shouldUpdateRime)
                 {
                     // 1. 检查Rime的preedit状态
                     var rimeContext = KeyboardHookPatch.GetRimeContext();
