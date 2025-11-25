@@ -1,0 +1,93 @@
+using BepInEx.Configuration;
+
+namespace ChillPatcher
+{
+    public static class UIFrameworkConfig
+    {
+        // ========== 功能开关配置 ==========
+        
+        /// <summary>
+        /// 是否启用100首限制破除（默认：关闭）
+        /// 警告：开启可能影响存档兼容性
+        /// </summary>
+        public static ConfigEntry<bool> EnableUnlimitedSongs { get; private set; }
+        
+        /// <summary>
+        /// 是否扩展音频格式支持（默认：关闭）
+        /// 扩展格式：OGG, FLAC, AIFF
+        /// </summary>
+        public static ConfigEntry<bool> EnableExtendedFormats { get; private set; }
+        
+        /// <summary>
+        /// 是否启用虚拟滚动（默认：开启）
+        /// 虚拟滚动不影响存档，仅优化性能
+        /// </summary>
+        public static ConfigEntry<bool> EnableVirtualScroll { get; private set; }
+        
+        /// <summary>
+        /// 是否启用文件夹歌单（默认：开启）
+        /// 文件夹歌单不写入存档，运行时动态加载
+        /// </summary>
+        public static ConfigEntry<bool> EnableFolderPlaylists { get; private set; }
+        
+        /// <summary>
+        /// 是否显示音乐封面（默认：开启）
+        /// 将播放列表按钮的图标替换为当前播放音乐的封面
+        /// </summary>
+        public static ConfigEntry<bool> EnableAlbumArtDisplay { get; private set; }
+        
+        // ========== 高级配置 ==========
+        
+        /// <summary>
+        /// 虚拟滚动缓冲区大小（默认：3）
+        /// </summary>
+        public static ConfigEntry<int> VirtualScrollBufferSize { get; private set; }
+        
+        public static void Initialize(ConfigFile config)
+        {
+            // 功能开关
+            EnableUnlimitedSongs = config.Bind(
+                "Features",
+                "EnableUnlimitedSongs",
+                false,  // 默认关闭
+                "Enable unlimited song import (may affect save compatibility)"
+            );
+            
+            EnableExtendedFormats = config.Bind(
+                "Features",
+                "EnableExtendedFormats",
+                false,  // 默认关闭
+                "Enable extended audio formats (OGG, FLAC, AIFF)"
+            );
+            
+            EnableVirtualScroll = config.Bind(
+                "Features",
+                "EnableVirtualScroll",
+                true,  // 默认开启，不影响存档
+                "Enable virtual scrolling for better performance"
+            );
+            
+            EnableFolderPlaylists = config.Bind(
+                "Features",
+                "EnableFolderPlaylists",
+                true,  // 默认开启，不影响存档
+                "Enable folder-based playlists (runtime only, not saved)"
+            );
+            
+            EnableAlbumArtDisplay = config.Bind(
+                "Features",
+                "EnableAlbumArtDisplay",
+                true,  // 默认开启
+                "Display album art on playlist toggle button"
+            );
+            
+            // 高级配置
+            VirtualScrollBufferSize = config.Bind(
+                "Advanced",
+                "VirtualScrollBufferSize",
+                3,
+                "Virtual scroll buffer size"
+            );
+        }
+    }
+}

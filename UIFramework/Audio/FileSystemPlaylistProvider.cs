@@ -1,0 +1,263 @@
+using System;
+using System.Collections.Generic;
+using System.IO;
+using System.Linq;
+using System.Threading.Tasks;
+using Bulbul;
+using ChillPatcher.UIFramework.Core;
+using ChillPatcher.UIFramework.Music;
+using Newtonsoft.Json;
+using UnityEngine;
+
+namespace ChillPatcher.UIFramework.Audio
+{
+    /// <summary>
+    /// 文件系统歌单提供器 - 支持JSON缓存
+    /// </summary>
+    public class FileSystemPlaylistProvider : IPlaylistProvider, IDisposable
+    {
+        private readonly string _directoryPath;
+        private readonly IAudioLoader _audioLoader;
+        private PlaylistCacheData _cacheData;
+        private List<GameAudioInfo> _runtimeSongs;
+        private string _playlistJsonPath;
+
+        public string Id { get; private set; }
+        public string DisplayName { get; private set; }
+        public Sprite Icon { get; private set; }
+        public AudioTag Tag { get; set; }
+        public bool SupportsLiveUpdate => true;
+        public string CustomTagId { get; private set; } // 自定义Tag ID
+
+        public event Action OnPlaylistUpdated;
+
+        public FileSystemPlaylistProvider(string directoryPath, IAudioLoader audioLoader, AudioTag tag = AudioTag.Local)
+        {
+            if (string.IsNullOrEmpty(directoryPath))
+                throw new ArgumentException("Directory path cannot be null or empty", nameof(directoryPath));
+
+            if (!Directory.Exists(directoryPath))
+                throw new DirectoryNotFoundException($"Directory not found: {directoryPath}");
+
+            _directoryPath = directoryPath;
+            _audioLoader = audioLoader ?? throw new ArgumentNullException(nameof(audioLoader));
+
+            // 默认ID和名称
+            Id = Path.GetFileName(_directoryPath);
+            DisplayName = Id;
+            
+            // ✅ 注册自定义Tag并获取位值
+            CustomTagId = $"playlist_{Id}";
+            var customTag = CustomTagManager.Instance.RegisterTag(CustomTagId, DisplayName);
+            Tag = customTag.BitValue; // 使用分配的位值
+            
+            _playlistJsonPath = Path.Combine(_directoryPath, "playlist.json");
+        }
+
+        public async Task<List<GameAudioInfo>> BuildPlaylist()
+        {
+            try
+            {
+                // 优先从缓存加载
+                if (PluginConfig.EnablePlaylistCache.Value && LoadCache())
+                {
+                    BepInEx.Logging.Logger.CreateLogSource("ChillUIFramework").LogInfo($"[Playlist] 从缓存加载歌单: {DisplayName}");
+                    _runtimeSongs = await BuildSongsFromCache();
+                }
+                else
+                {
+                    // 扫描文件系统
+                    BepInEx.Logging.Logger.CreateLogSource("ChillUIFramework").LogInfo($"[Playlist] 扫描目录: {_directoryPath}");
+                    _runtimeSongs = await ScanDirectoryAndBuild();
+
+                    // 自动生成JSON
+                    if (PluginConfig.AutoGeneratePlaylistJson.Value)
+                    {
+                        GenerateCache();
+                    }
+                }
+
+                // ⚠️ Tag注册已移到Plugin.SetupFolderPlaylistsAsync统一批量处理
+                
+                BepInEx.Logging.Logger.CreateLogSource("ChillUIFramework").LogInfo($"[Playlist] 加载完成 '{DisplayName}': {_runtimeSongs.Count} 首歌曲");
+
+                OnPlaylistUpdated?.Invoke();
+
+                return _runtimeSongs;
+            }
+            catch (Exception ex)
+            {
+                BepInEx.Logging.Logger.CreateLogSource("ChillUIFramework").LogError($"[Playlist] 构建歌单失败 '{DisplayName}': {ex}");
+                return new List<GameAudioInfo>();
+            }
+        }
+
+        /// <summary>
+        /// 强制刷新歌单（重新扫描）
+        /// </summary>
+        public async Task Refresh()
+        {
+            _cacheData = null;
+            _runtimeSongs = null;
+            await BuildPlaylist();
+        }
+
+        /// <summary>
+        /// 加载缓存文件
+        /// </summary>
+        private bool LoadCache()
+        {
+            if (!File.Exists(_playlistJsonPath))
+                return false;
+
+            try
+            {
+                var json = File.ReadAllText(_playlistJsonPath);
+                _cacheData = JsonConvert.DeserializeObject<PlaylistCacheData>(json);
+
+                if (_cacheData == null)
+                    return false;
+
+                // 更新歌单信息
+                DisplayName = _cacheData.PlaylistName ?? Path.GetFileName(_directoryPath);
+                Id = _directoryPath; // 使用路径作为唯一ID
+
+                BepInEx.Logging.Logger.CreateLogSource("ChillUIFramework").LogInfo($"[Playlist] 缓存加载成功: {DisplayName} (版本 {_cacheData.Version})");
+                return true;
+            }
+            catch (Exception ex)
+            {
+                BepInEx.Logging.Logger.CreateLogSource("ChillUIFramework").LogWarning($"[Playlist] 缓存解析失败: {ex.Message}");
+                return false;
+            }
+        }
+
+        /// <summary>
+        /// 从缓存构建歌曲列表
+        /// </summary>
+        private async Task<List<GameAudioInfo>> BuildSongsFromCache()
+        {
+            var songs = new List<GameAudioInfo>();
+
+            foreach (var cachedSong in _cacheData.Songs)
+            {
+                if (!cachedSong.Enabled)
+                    continue;
+
+                var filePath = Path.Combine(_directoryPath, cachedSong.FileName);
+
+                if (!File.Exists(filePath))
+                {
+                    BepInEx.Logging.Logger.CreateLogSource("ChillUIFramework").LogWarning($"[Playlist] 歌曲文件不存在: {cachedSong.FileName}");
+                    continue;
+                }
+
+                try
+                {
+                    var audioInfo = await _audioLoader.LoadFromFile(filePath);
+
+                    if (audioInfo != null)
+                    {
+                        // 使用缓存的元数据覆盖
+                        if (!string.IsNullOrEmpty(cachedSong.Title))
+                            audioInfo.Title = cachedSong.Title;
+                        if (!string.IsNullOrEmpty(cachedSong.Artist))
+                            audioInfo.Credit = cachedSong.Artist;  // Credit字段相当于Artist
+                        // Album字段不存在，忽略
+
+                        songs.Add(audioInfo);
+                    }
+                }
+                catch (Exception ex)
+                {
+                    BepInEx.Logging.Logger.CreateLogSource("ChillUIFramework").LogError($"[Playlist] 加载歌曲失败 '{cachedSong.FileName}': {ex.Message}");
+                }
+            }
+
+            return songs;
+        }
+
+        /// <summary>
+        /// 扫描目录并构建歌单
+        /// </summary>
+        private async Task<List<GameAudioInfo>> ScanDirectoryAndBuild()
+        {
+            // 仅扫描当前目录，不递归
+            var songs = await _audioLoader.LoadFromDirectory(_directoryPath, recursive: false);
+            return songs;
+        }
+
+        /// <summary>
+        /// 生成缓存JSON文件
+        /// </summary>
+        private void GenerateCache()
+        {
+            try
+            {
+                _cacheData = new PlaylistCacheData
+                {
+                    Version = 1,
+                    PlaylistName = DisplayName,
+                    Description = $"自动生成于 {DateTime.Now:yyyy-MM-dd HH:mm:ss}",
+                    Tags = new List<string>(),
+                    Songs = new List<CachedSongData>(),
+                    GeneratedAt = DateTime.Now,
+                    LastModified = DateTime.Now
+                };
+
+                // 添加歌曲到缓存
+                foreach (var song in _runtimeSongs)
+                {
+                    var fileName = Path.GetFileName(song.LocalPath);
+                    var fileInfo = new FileInfo(song.LocalPath);
+
+                    _cacheData.Songs.Add(new CachedSongData
+                    {
+                        FileName = fileName,
+                        Title = song.Title,
+                        Artist = song.Credit,  // Credit字段相当于Artist
+                        Album = "",             // GameAudioInfo没有Album字段
+                        Duration = 0,
+                        Enabled = true,
+                        Tags = new List<string>(),
+                        FileModifiedAt = fileInfo.LastWriteTime
+                    });
+                }
+
+                // 保存JSON
+                var json = JsonConvert.SerializeObject(_cacheData, Formatting.Indented);
+                File.WriteAllText(_playlistJsonPath, json);
+
+                BepInEx.Logging.Logger.CreateLogSource("ChillUIFramework").LogInfo($"[Playlist] 缓存生成成功: {_playlistJsonPath}");
+            }
+            catch (Exception ex)
+            {
+                BepInEx.Logging.Logger.CreateLogSource("ChillUIFramework").LogError($"[Playlist] 缓存生成失败: {ex}");
+            }
+        }
+
+        /// <summary>
+        /// 检查目录是否有更新
+        /// </summary>
+        public bool HasDirectoryChanged()
+        {
+            if (_cacheData == null)
+                return true;
+
+            var directoryInfo = new DirectoryInfo(_directoryPath);
+            return directoryInfo.LastWriteTime > _cacheData.LastModified;
+        }
+
+        /// <summary>
+        /// 释放资源并取消注册自定义Tag
+        /// </summary>
+        public void Dispose()
+        {
+            if (!string.IsNullOrEmpty(CustomTagId))
+            {
+                CustomTagManager.Instance.UnregisterTag(CustomTagId);
+            }
+        }
+    }
+}
+

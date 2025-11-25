@@ -17,12 +17,25 @@ F:\SteamLibrary\steamapps\common\wallpaper_engine\projects\myprojects\chill_with
 
 ## ✨ 主要功能
 
+### 核心功能
 - **🎮 离线模式运行**：无需 Steam 即可启动游戏
 - **💾 存档切换**：支持多个存档槽位，或读取原 Steam 用户的存档
 - **⌨️ 桌面输入支持**：在 Wallpaper Engine 中可以直接从桌面输入
 - **🇨🇳 中文输入法**：集成 RIME 中州韵输入法引擎，支持拼音、双拼等多种输入方案
 - **🌍 语言切换**：自定义默认语言设置
 - **🎁 DLC 控制**：可选启用或禁用 DLC 功能
+- **🎵 歌曲扩充**：歌曲功能扩充
+
+### 性能优化
+- **⚡ 虚拟滚动**：只渲染可见的音乐列表项，大幅提升性能
+  - 支持 2000+ 首歌曲不卡顿
+  - 内存占用降低 90%+
+  - 滚动流畅丝滑
+
+### 关于歌曲扩充
+- **📁 文件夹播放列表**：自动扫描音频文件夹，按目录生成播放列表
+- **🎵 扩展音频格式**：支持 OGG、FLAC、AIFF、.egg
+- **🔢 突破限制**：扩充 AudioTag 到 16 位限制，支持12个额外自定义标签, 可扩充曲目上限
 
 ## 📦 安装方式
 
@@ -53,6 +66,120 @@ F:\SteamLibrary\steamapps\common\wallpaper_engine\projects\myprojects\chill_with
 ## ⚙️ 配置选项
 
 配置文件位于：`BepInEx\config\com.chillpatcher.plugin.cfg`
+
+### UI 框架功能
+
+```ini
+[Features]
+
+## Enable unlimited song import (may affect save compatibility)
+# Setting type: Boolean
+# Default value: false
+EnableUnlimitedSongs = false
+
+## Enable extended audio formats (OGG, FLAC, AIFF)
+# Setting type: Boolean
+# Default value: false
+EnableExtendedFormats = false
+
+## Enable virtual scrolling for better performance
+# Setting type: Boolean
+# Default value: true
+EnableVirtualScroll = true
+
+## Enable folder-based playlists (runtime only, not saved)
+# Setting type: Boolean
+# Default value: true
+EnableFolderPlaylists = true
+```
+
+### 虚拟滚动高级设置
+
+```ini
+[Advanced]
+## 虚拟滚动缓冲区大小
+## 在可见区域前后渲染的额外项目数量
+## 较大值：滚动更流畅，内存占用略高
+## 较小值：内存占用低，快速滚动可能有延迟
+## 推荐值：3-5
+VirtualScrollBufferSize = 3
+```
+
+### 文件夹播放列表设置
+
+```ini
+[Playlist]
+
+## 是否启用文件夹歌单系统
+## true = 启用（默认），扫描目录并创建自定义Tag
+## false = 禁用，不会扫描文件夹也不会添加自定义Tag
+# Setting type: Boolean
+# Default value: true
+EnableFolderPlaylists = true
+
+## 歌单根目录路径
+## 相对路径基于游戏根目录（.dll所在目录）
+## 默认：playlist（与ChillPatcher.dll同级的playlist文件夹）
+# Setting type: String
+# Default value: playlist
+RootFolder = playlist
+
+## 目录递归扫描深度
+## 0 = 仅扫描根目录
+## 1 = 扫描根目录及其一级子目录
+## 2 = 扫描两级子目录
+## 3 = 扫描三级子目录（默认）
+## 建议范围：0-5
+# Setting type: Int32
+# Default value: 3
+# Acceptable value range: From 0 to 10
+RecursionDepth = 3
+
+## 是否自动生成playlist.json
+## true = 首次扫描目录时自动生成JSON缓存（默认）
+## false = 仅使用已存在的JSON文件
+# Setting type: Boolean
+# Default value: true
+AutoGenerateJson = true
+
+## 是否启用歌单缓存
+## true = 读取playlist.json缓存，加快启动速度（默认）
+## false = 每次启动重新扫描所有音频文件
+# Setting type: Boolean
+# Default value: true
+EnableCache = true
+```
+
+**使用示例**：
+
+假设你的音乐文件夹结构如下：
+```
+Music/
+├── Pop/
+│   ├── song1.mp3
+│   └── song2.ogg
+└── Rock/
+    ├── album1/
+    │   ├── track1.flac
+    │   └── track2.flac
+    └── album2/
+        └── track3.mp3
+
+```
+
+配置 `RootFolder = Music` 和 `RecursionDepth = 2`，将自动生成以下播放列表：
+- 📁 Pop (2 首)
+- 📁 Rock (1 首) 
+- 📁 Rock/album1 (2 首)
+- 📁 Rock/album2 (1 首)
+
+**支持的音频格式**：
+- `.mp3` - MP3 (MPEG Audio)
+- `.wav` - WAV (Waveform Audio)
+- `.ogg` - Ogg Vorbis
+- `.egg` - Ogg Vorbis
+- `.flac` - FLAC (Free Lossless Audio Codec)
+- `.aiff` / `.aif` - AIFF (Audio Interchange File Format)
 
 ### 语言设置
 ```ini
@@ -167,13 +294,14 @@ RIME（Rime Input Method Engine）是一个开源的输入法引擎，支持：
 - 🌙 **明月拼音** (luna_pinyin) - 全拼，默认方案
 - 📌 **小鹤双拼** (double_pinyin_flypy)
 - 🎹 **自然码双拼** (double_pinyin)
-- ✍️ **五笔画** (stroke)
+- 🪟 **微软双拼** (microsoft_shuangpin)
+- 等等
 
 #### 配置文件路径
 
 RIME 配置文件位于：
 ```
-BepInEx\plugins\ChillPatcher\rime\user\
+BepInEx\plugins\ChillPatcher\rime-data\shared
 ```
 
 常用配置文件：
