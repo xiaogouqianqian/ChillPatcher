@@ -86,6 +86,17 @@ namespace ChillPatcher.UIFramework.Data
                             UNIQUE(tag_id, song_uuid)
                         )";
                     cmd.ExecuteNonQuery();
+
+                    // 排除列表表
+                    cmd.CommandText = @"
+                        CREATE TABLE IF NOT EXISTS CustomExcludedSongs (
+                            id INTEGER PRIMARY KEY AUTOINCREMENT,
+                            tag_id TEXT NOT NULL,
+                            song_uuid TEXT NOT NULL,
+                            created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+                            UNIQUE(tag_id, song_uuid)
+                        )";
+                    cmd.ExecuteNonQuery();
                 }
             }
         }
@@ -103,6 +114,9 @@ namespace ChillPatcher.UIFramework.Data
                     cmd.ExecuteNonQuery();
 
                     cmd.CommandText = "CREATE INDEX IF NOT EXISTS idx_order_tag ON CustomPlaylistOrder(tag_id, order_index)";
+                    cmd.ExecuteNonQuery();
+
+                    cmd.CommandText = "CREATE INDEX IF NOT EXISTS idx_excluded_tag ON CustomExcludedSongs(tag_id)";
                     cmd.ExecuteNonQuery();
                 }
             }
@@ -397,6 +411,131 @@ namespace ChillPatcher.UIFramework.Data
 
         #endregion
 
+        #region 排除列表操作
+
+        /// <summary>
+        /// 添加到排除列表
+        /// </summary>
+        public bool AddExcluded(string tagId, string songUuid)
+        {
+            lock (_lock)
+            {
+                try
+                {
+                    using (var cmd = _connection.CreateCommand())
+                    {
+                        cmd.CommandText = @"
+                            INSERT OR IGNORE INTO CustomExcludedSongs (tag_id, song_uuid)
+                            VALUES (@tagId, @songUuid)";
+                        cmd.Parameters.AddWithValue("@tagId", tagId);
+                        cmd.Parameters.AddWithValue("@songUuid", songUuid);
+                        
+                        return cmd.ExecuteNonQuery() > 0;
+                    }
+                }
+                catch (Exception ex)
+                {
+                    BepInEx.Logging.Logger.CreateLogSource("PlaylistDB").LogError($"添加排除失败: {ex.Message}");
+                    return false;
+                }
+            }
+        }
+
+        /// <summary>
+        /// 从排除列表移除
+        /// </summary>
+        public bool RemoveExcluded(string tagId, string songUuid)
+        {
+            lock (_lock)
+            {
+                try
+                {
+                    using (var cmd = _connection.CreateCommand())
+                    {
+                        cmd.CommandText = @"
+                            DELETE FROM CustomExcludedSongs
+                            WHERE tag_id = @tagId AND song_uuid = @songUuid";
+                        cmd.Parameters.AddWithValue("@tagId", tagId);
+                        cmd.Parameters.AddWithValue("@songUuid", songUuid);
+                        
+                        return cmd.ExecuteNonQuery() > 0;
+                    }
+                }
+                catch (Exception ex)
+                {
+                    BepInEx.Logging.Logger.CreateLogSource("PlaylistDB").LogError($"移除排除失败: {ex.Message}");
+                    return false;
+                }
+            }
+        }
+
+        /// <summary>
+        /// 检查是否在排除列表中
+        /// </summary>
+        public bool IsExcluded(string tagId, string songUuid)
+        {
+            lock (_lock)
+            {
+                try
+                {
+                    using (var cmd = _connection.CreateCommand())
+                    {
+                        cmd.CommandText = @"
+                            SELECT COUNT(*) FROM CustomExcludedSongs
+                            WHERE tag_id = @tagId AND song_uuid = @songUuid";
+                        cmd.Parameters.AddWithValue("@tagId", tagId);
+                        cmd.Parameters.AddWithValue("@songUuid", songUuid);
+                        
+                        return Convert.ToInt32(cmd.ExecuteScalar()) > 0;
+                    }
+                }
+                catch (Exception ex)
+                {
+                    BepInEx.Logging.Logger.CreateLogSource("PlaylistDB").LogError($"检查排除失败: {ex.Message}");
+                    return false;
+                }
+            }
+        }
+
+        /// <summary>
+        /// 获取指定Tag的所有排除UUID
+        /// </summary>
+        public List<string> GetExcludedSongs(string tagId)
+        {
+            lock (_lock)
+            {
+                var result = new List<string>();
+
+                try
+                {
+                    using (var cmd = _connection.CreateCommand())
+                    {
+                        cmd.CommandText = @"
+                            SELECT song_uuid FROM CustomExcludedSongs
+                            WHERE tag_id = @tagId
+                            ORDER BY created_at";
+                        cmd.Parameters.AddWithValue("@tagId", tagId);
+
+                        using (var reader = cmd.ExecuteReader())
+                        {
+                            while (reader.Read())
+                            {
+                                result.Add(reader.GetString(0));
+                            }
+                        }
+                    }
+                }
+                catch (Exception ex)
+                {
+                    BepInEx.Logging.Logger.CreateLogSource("PlaylistDB").LogError($"获取排除列表失败: {ex.Message}");
+                }
+
+                return result;
+            }
+        }
+
+        #endregion
+
         /// <summary>
         /// 清理指定Tag的所有数据
         /// </summary>
@@ -420,6 +559,13 @@ namespace ChillPatcher.UIFramework.Data
                             using (var cmd = _connection.CreateCommand())
                             {
                                 cmd.CommandText = "DELETE FROM CustomPlaylistOrder WHERE tag_id = @tagId";
+                                cmd.Parameters.AddWithValue("@tagId", tagId);
+                                cmd.ExecuteNonQuery();
+                            }
+
+                            using (var cmd = _connection.CreateCommand())
+                            {
+                                cmd.CommandText = "DELETE FROM CustomExcludedSongs WHERE tag_id = @tagId";
                                 cmd.Parameters.AddWithValue("@tagId", tagId);
                                 cmd.ExecuteNonQuery();
                             }

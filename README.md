@@ -181,6 +181,34 @@ Music/
 - `.flac` - FLAC (Free Lossless Audio Codec)
 - `.aiff` / `.aif` - AIFF (Audio Interchange File Format)
 
+**如何添加新歌曲（增量更新）**：
+
+首次运行后，每个歌单文件夹会生成两个文件：
+```
+playlist/
+├── 我的收藏/
+│   ├── !rescan_playlist    ← 扫描标志文件
+│   ├── playlist.json       ← 歌曲缓存
+│   ├── song1.mp3
+│   └── song2.mp3
+```
+
+要添加新歌曲：
+1. 将新的音频文件放入歌单文件夹
+2. 删除该文件夹中的 `!rescan_playlist` 文件
+3. 重启游戏
+
+系统会：
+- ✅ 保留已有歌曲的 UUID（收藏、排序、排除状态不丢失）
+- ✅ 为新歌曲分配新的 UUID
+- ✅ 更新 `playlist.json` 缓存
+- ✅ 重新创建 `!rescan_playlist` 标志文件
+
+**注意**：
+- 每个歌单文件夹独立管理，互不影响
+- 只需删除需要更新的文件夹的标志文件
+- 不删除标志文件时，使用缓存快速加载
+
 ### 语言设置
 ```ini
 [Language]

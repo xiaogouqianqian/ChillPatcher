@@ -4,6 +4,7 @@ using System.IO;
 using System.Linq;
 using Bulbul;
 using HarmonyLib;
+using ChillPatcher.Patches.UIFramework;
 
 namespace ChillPatcher.Patches
 {
@@ -53,14 +54,16 @@ namespace ChillPatcher.Patches
                 int cleanedLocalMusic = CleanInvalidLocalMusic();
                 int cleanedFavorites = CleanInvalidFavorites(validMusicUUIDs, musicItems);
                 int cleanedPlaylistOrder = CleanInvalidPlaylistOrder(validMusicUUIDs);
+                int cleanedExcluded = CleanInvalidExcluded(validMusicUUIDs);
 
                 Plugin.Log.LogInfo($"[CleanInvalidMusicData] 清理完成:");
                 Plugin.Log.LogInfo($"  - 清理无效本地音乐: {cleanedLocalMusic} 个");
                 Plugin.Log.LogInfo($"  - 清理无效收藏: {cleanedFavorites} 个");
                 Plugin.Log.LogInfo($"  - 清理无效播放顺序: {cleanedPlaylistOrder} 个");
+                Plugin.Log.LogInfo($"  - 清理无效排除列表: {cleanedExcluded} 个");
 
                 // 保存更新后的数据
-                if (cleanedLocalMusic > 0 || cleanedFavorites > 0 || cleanedPlaylistOrder > 0)
+                if (cleanedLocalMusic > 0 || cleanedFavorites > 0 || cleanedPlaylistOrder > 0 || cleanedExcluded > 0)
                 {
                     SaveDataManager.Instance.SaveMusicSetting();
                     SaveDataManager.Instance.SaveLocalMusicSetting();
@@ -192,6 +195,88 @@ namespace ChillPatcher.Patches
             {
                 playlistOrder.Remove(uuid);
                 Plugin.Log.LogDebug($"[CleanInvalidPlaylistOrder] 移除无效UUID: {uuid}");
+                count++;
+            }
+
+            return count;
+        }
+
+        /// <summary>
+        /// 清理无效的排除列表UUID（参考收藏清理逻辑）
+        /// 策略：检查每个排除的UUID对应的音乐信息
+        /// - 如果有内置tag（非Local）→ 保留
+        /// - 如果只有Local tag → 检查文件是否存在，不存在则删除
+        /// </summary>
+        private static int CleanInvalidExcluded(HashSet<string> validMusicUUIDs)
+        {
+            var excludedUUIDs = SaveDataManager.Instance.MusicSetting.ExcludedFromPlaylistUUIDs;
+            if (excludedUUIDs == null || excludedUUIDs.Count == 0)
+            {
+                return 0;
+            }
+
+            // 获取所有音乐列表（需要访问MusicService）
+            var musicService = MusicService_RemoveLimit_Patch.CurrentInstance;
+            if (musicService == null)
+            {
+                Plugin.Log.LogWarning("[CleanInvalidExcluded] MusicService实例未找到，跳过清理");
+                return 0;
+            }
+
+            var allMusicList = HarmonyLib.Traverse.Create(musicService)
+                .Field("_allMusicList")
+                .GetValue<List<GameAudioInfo>>();
+
+            if (allMusicList == null)
+            {
+                return 0;
+            }
+
+            // 创建UUID到AudioInfo的映射
+            var uuidToMusic = new Dictionary<string, GameAudioInfo>();
+            foreach (var music in allMusicList)
+            {
+                if (!string.IsNullOrEmpty(music.UUID))
+                {
+                    uuidToMusic[music.UUID] = music;
+                }
+            }
+
+            var invalidUUIDs = new List<string>();
+
+            foreach (var uuid in excludedUUIDs.ToList())
+            {
+                // 检查UUID是否在有效音乐列表中
+                if (!validMusicUUIDs.Contains(uuid))
+                {
+                    // UUID不在当前加载的音乐列表中，可能是已删除的
+                    invalidUUIDs.Add(uuid);
+                    Plugin.Log.LogDebug($"[CleanInvalidExcluded] 排除UUID不在音乐列表中: {uuid}");
+                }
+                else if (uuidToMusic.TryGetValue(uuid, out var music))
+                {
+                    // UUID在列表中，检查是否是本地音乐且文件不存在
+                    bool hasLocalTag = music.Tag.HasFlagFast(AudioTag.Local);
+                    bool hasOtherTag = (music.Tag & ~AudioTag.Local & ~AudioTag.Favorite) != 0;
+
+                    if (hasLocalTag && !hasOtherTag)
+                    {
+                        // 只有Local tag，检查文件
+                        if (!string.IsNullOrEmpty(music.LocalPath) && !File.Exists(music.LocalPath))
+                        {
+                            invalidUUIDs.Add(uuid);
+                            Plugin.Log.LogDebug($"[CleanInvalidExcluded] 本地音乐文件不存在: {music.LocalPath} (UUID: {uuid})");
+                        }
+                    }
+                    // 如果有其他内置tag，即使是本地音乐也保留排除状态
+                }
+            }
+
+            // 移除无效UUID
+            int count = 0;
+            foreach (var uuid in invalidUUIDs)
+            {
+                excludedUUIDs.Remove(uuid);
                 count++;
             }
 

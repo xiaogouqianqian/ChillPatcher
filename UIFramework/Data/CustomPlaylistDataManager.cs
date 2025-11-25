@@ -175,6 +175,85 @@ namespace ChillPatcher.UIFramework.Data
 
         #endregion
 
+        #region 排除列表管理
+
+        /// <summary>
+        /// 添加到排除列表
+        /// </summary>
+        public bool AddExcluded(string tagId, string songUuid)
+        {
+            if (string.IsNullOrEmpty(tagId) || string.IsNullOrEmpty(songUuid))
+                return false;
+
+            var result = _database.AddExcluded(tagId, songUuid);
+            
+            if (result)
+            {
+                BepInEx.Logging.Logger.CreateLogSource("CustomPlaylistData")
+                    .LogInfo($"添加到排除列表: Tag={tagId}, UUID={songUuid}");
+            }
+            
+            return result;
+        }
+
+        /// <summary>
+        /// 从排除列表移除
+        /// </summary>
+        public bool RemoveExcluded(string tagId, string songUuid)
+        {
+            if (string.IsNullOrEmpty(tagId) || string.IsNullOrEmpty(songUuid))
+                return false;
+
+            var result = _database.RemoveExcluded(tagId, songUuid);
+            
+            if (result)
+            {
+                BepInEx.Logging.Logger.CreateLogSource("CustomPlaylistData")
+                    .LogInfo($"从排除列表移除: Tag={tagId}, UUID={songUuid}");
+            }
+            
+            return result;
+        }
+
+        /// <summary>
+        /// 检查是否在排除列表中
+        /// </summary>
+        public bool IsExcluded(string tagId, string songUuid)
+        {
+            if (string.IsNullOrEmpty(tagId) || string.IsNullOrEmpty(songUuid))
+                return false;
+
+            return _database.IsExcluded(tagId, songUuid);
+        }
+
+        /// <summary>
+        /// 获取指定Tag的所有排除歌曲
+        /// </summary>
+        public List<string> GetExcludedSongs(string tagId)
+        {
+            if (string.IsNullOrEmpty(tagId))
+                return new List<string>();
+
+            return _database.GetExcludedSongs(tagId);
+        }
+
+        /// <summary>
+        /// 切换排除状态
+        /// </summary>
+        public bool ToggleExcluded(string tagId, string songUuid)
+        {
+            if (IsExcluded(tagId, songUuid))
+            {
+                return RemoveExcluded(tagId, songUuid);
+            }
+            else
+            {
+                return AddExcluded(tagId, songUuid);
+            }
+        }
+
+        #endregion
+
         #region Tag管理
 
         /// <summary>

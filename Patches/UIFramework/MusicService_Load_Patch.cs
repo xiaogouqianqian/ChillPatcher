@@ -75,6 +75,7 @@ namespace ChillPatcher.Patches.UIFramework
 
                 int restoredFavorites = 0;
                 int restoredOrder = 0;
+                int restoredExcluded = 0;
 
                 foreach (var kvp in customTags)
                 {
@@ -93,7 +94,12 @@ namespace ChillPatcher.Patches.UIFramework
                         }
                     }
 
-                    // 2. 恢复播放顺序
+                    // 2. 恢复排除列表（注意：不修改Tag，只记录状态）
+                    var excludedSongs = manager.GetExcludedSongs(tagId);
+                    restoredExcluded += excludedSongs.Count;
+                    // 排除状态通过 IsContainsExcludedFromPlaylist 检查时从数据库读取
+
+                    // 3. 恢复播放顺序
                     var playlistOrder = manager.GetPlaylistOrder(tagId);
                     if (playlistOrder.Count > 0)
                     {
@@ -127,7 +133,7 @@ namespace ChillPatcher.Patches.UIFramework
                     }
                 }
 
-                logger.LogInfo($"✅ 从数据库恢复完成: 收藏={restoredFavorites}, 排序={restoredOrder}");
+                logger.LogInfo($"✅ 从数据库恢复完成: 收藏={restoredFavorites}, 排除={restoredExcluded}, 排序={restoredOrder}");
             }
             catch (Exception ex)
             {
