@@ -124,6 +124,10 @@
       <HintPath>F:\SteamLibrary\steamapps\common\wallpaper_engine\projects\myprojects\chill_with_you\Chill With You_Data\Managed\VContainer.dll</HintPath>
       <Private>False</Private>
     </Reference>
+    <Reference Include="FastEnum">
+      <HintPath>F:\SteamLibrary\steamapps\common\wallpaper_engine\projects\myprojects\chill_with_you\Chill With You_Data\Managed\FastEnum.dll</HintPath>
+      <Private>False</Private>
+    </Reference>
   </ItemGroup>
 
   <Target Name="CopyToPlugins" AfterTargets="Build">

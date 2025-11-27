@@ -12,8 +12,10 @@ namespace ChillPatcher.Patches
     {
         static bool Prefix()
         {
+            if (!PluginConfig.EnableWallpaperEngineMode.Value)
+                return true; // 不屏蔽，执行原方法
+                
             Plugin.Logger.LogInfo("[ChillPatcher] SteamManager.Initialize - 跳过Steam初始化（离线模式）");
-            // 什么都不做，阻止Steam初始化
             return false; // 阻止原方法执行
         }
     }
@@ -27,8 +29,10 @@ namespace ChillPatcher.Patches
     {
         static bool Prefix()
         {
-            // 什么都不做，阻止原方法执行
-            return false;
+            if (!PluginConfig.EnableWallpaperEngineMode.Value)
+                return true; // 不屏蔽，执行原方法
+                
+            return false; // 阻止原方法执行
         }
     }
 

@@ -12,9 +12,11 @@ namespace ChillPatcher.Patches
     {
         static bool Prefix()
         {
+            if (!PluginConfig.EnableWallpaperEngineMode.Value)
+                return true; // 不屏蔽，执行原方法
+                
             Plugin.Logger.LogInfo("[ChillPatcher] SteamAchievementEventBroker - 跳过构造函数，防止异常");
-            // 阻止原构造函数执行，避免抛出异常和注册 Steam Callback
-            return false;
+            return false; // 阻止原构造函数执行
         }
     }
 
@@ -27,6 +29,9 @@ namespace ChillPatcher.Patches
     {
         static bool Prefix(SteamAchievementEventBroker __instance)
         {
+            if (!PluginConfig.EnableWallpaperEngineMode.Value)
+                return true; // 不屏蔽，执行原方法
+                
             Plugin.Logger.LogInfo("[ChillPatcher] SteamAchievementEventBroker.Dispose - 安全处置");
             
             // 获取 Subject 字段并调用 Dispose

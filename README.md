@@ -12,17 +12,30 @@
 
 日志文件位置：
 ```
-F:\SteamLibrary\steamapps\common\wallpaper_engine\projects\myprojects\chill_with_you\BepInEx\LogOutput.log
+BepInEx\LogOutput.log
 ```
 
 提交 Issue 时请附带此日志文件，否则可能无法定位问题！
 
 ---
 
+## 壁纸引擎模式
+
+EnableWallpaperEngineMode更改为是来启动壁纸引擎模式
+此模式不需要steam授权,并且可以鼠标点击交互
+
+### 关于时长和成就
+- **无法获取时长**
+- **缓存的成就**
+
+壁纸引擎模式会缓存成就到本地,当在线启动之后会自动从缓存的成就尝试为steam解锁,但是需要设置OfflineUserId为你的steamid.就是你的steam存档名.在C:\Users\kevin\AppData\LocalLow\Nestopi\Chill With You\SaveData\Release\v2
+
+你的steam安装的游戏也需要安装此插件,并且没有开启壁纸引擎模式,才会尝试从缓存同步成就
+
 ## ✨ 主要功能
 
 ### 核心功能
-- **🎮 离线模式运行**：无需 Steam 即可启动游戏
+- **🎮 壁纸引擎模式运行**：无需 Steam 即可启动游戏
 - **💾 存档切换**：支持多个存档槽位，或读取原 Steam 用户的存档
 - **⌨️ 桌面输入支持**：在 Wallpaper Engine 中可以直接从桌面输入
 - **🇨🇳 中文输入法**：集成 RIME 中州韵输入法引擎，支持拼音、双拼等多种输入方案

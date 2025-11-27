@@ -13,6 +13,15 @@ namespace ChillPatcher
         // DLC设置
         public static ConfigEntry<bool> EnableDLC { get; private set; }
 
+        // Steam补丁设置（统一开关）
+        public static ConfigEntry<bool> EnableWallpaperEngineMode { get; private set; }
+
+        // 多存档设置
+        public static ConfigEntry<bool> UseMultipleSaveSlots { get; private set; }
+
+        // 成就缓存设置
+        public static ConfigEntry<bool> EnableAchievementCache { get; private set; }
+
         // 键盘钩子设置
         public static ConfigEntry<int> KeyboardHookInterval { get; private set; }
 
@@ -71,6 +80,42 @@ namespace ChillPatcher
                 "是否启用DLC功能\n" +
                 "true = 启用DLC\n" +
                 "false = 禁用DLC（默认）"
+            );
+
+            // WallpaperEngine补丁设置
+            EnableWallpaperEngineMode = config.Bind(
+                "WallpaperEngine",
+                "EnableWallpaperEngineMode",
+                false,
+                "是否启用壁纸引擎兼容功能\n" +
+                "true = 启用离线模式，屏蔽所有Steam在线功能\n" +
+                "false = 使用游戏原本逻辑（默认）\n" +
+                "注意：启用后将强制使用配置的存档，成就不会同步到Steam"
+            );
+
+            // 多存档设置
+            UseMultipleSaveSlots = config.Bind(
+                "SaveData",
+                "UseMultipleSaveSlots",
+                false,
+                "是否使用多存档功能\n" +
+                "true = 使用配置的离线用户ID作为存档路径，可以切换不同存档\n" +
+                "false = 使用Steam ID作为存档路径（默认）\n" +
+                "注意：启用后即使不在壁纸引擎模式下也会使用配置的存档路径"
+            );
+
+            // 成就缓存设置
+            EnableAchievementCache = config.Bind(
+                "Achievement",
+                "EnableAchievementCache",
+                true,
+                "是否启用成就缓存功能\n" +
+                "true = 所有成就都会缓存到本地作为备份（默认）\n" +
+                "  - 壁纸引擎模式：仅缓存，不推送到Steam\n" +
+                "  - 正常模式：缓存后继续推送到Steam\n" +
+                "false = 禁用成就缓存（正常模式直接推送Steam，壁纸引擎模式丢弃成就）\n" +
+                "缓存位置: C:\\Users\\(user)\\AppData\\LocalLow\\Nestopi\\Chill With You\\ChillPatcherCache\\[UserID]\n" +
+                "注意：缓存永久保留，每次启动会自动同步到Steam"
             );
 
             // 键盘钩子消息循环间隔
@@ -229,6 +274,9 @@ namespace ChillPatcher
             Plugin.Logger.LogInfo($"  - 默认语言: {DefaultLanguage.Value}");
             Plugin.Logger.LogInfo($"  - 离线用户ID: {OfflineUserId.Value}");
             Plugin.Logger.LogInfo($"  - 启用DLC: {EnableDLC.Value}");
+            Plugin.Logger.LogInfo($"  - 壁纸引擎模式: {EnableWallpaperEngineMode.Value}");
+            Plugin.Logger.LogInfo($"  - 使用多存档: {UseMultipleSaveSlots.Value}");
+            Plugin.Logger.LogInfo($"  - 启用成就缓存: {EnableAchievementCache.Value}");
             Plugin.Logger.LogInfo($"  - 键盘钩子间隔: {KeyboardHookInterval.Value}ms");
             Plugin.Logger.LogInfo($"  - 启用Rime: {EnableRimeInputMethod.Value}");
             if (!string.IsNullOrEmpty(RimeSharedDataPath.Value))

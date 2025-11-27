@@ -56,6 +56,13 @@ namespace ChillPatcher
             KeyboardHookPatch.Initialize();
             Logger.LogInfo("Keyboard hook initialized!");
             
+            // 初始化成就同步管理器
+            if (PluginConfig.EnableAchievementCache.Value)
+            {
+                AchievementSyncManager.Initialize();
+                Logger.LogInfo("Achievement sync manager initialized!");
+            }
+            
             // ========== 初始化UI框架 ==========
             try
             {

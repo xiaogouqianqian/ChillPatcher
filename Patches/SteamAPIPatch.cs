@@ -11,6 +11,9 @@ namespace ChillPatcher.Patches
     {
         static bool Prefix(ref AppId_t __result)
         {
+            if (!PluginConfig.EnableWallpaperEngineMode.Value)
+                return true; // 不屏蔽，执行原方法
+                
             __result = new AppId_t(3548580); // 使用游戏的实际 AppID
             return false; // 阻止原方法执行
         }
@@ -24,6 +27,9 @@ namespace ChillPatcher.Patches
     {
         static bool Prefix(ref string __result)
         {
+            if (!PluginConfig.EnableWallpaperEngineMode.Value)
+                return true; // 不屏蔽，执行原方法
+                
             __result = PluginConfig.OfflineUserId.Value;
             return false; // 阻止原方法执行
         }
@@ -38,6 +44,9 @@ namespace ChillPatcher.Patches
     {
         static bool Prefix(ref CSteamID __result)
         {
+            if (!PluginConfig.EnableWallpaperEngineMode.Value)
+                return true; // 不屏蔽，执行原方法
+                
             // 尝试解析用户ID为数字，如果失败则使用固定值
             ulong steamId;
             if (ulong.TryParse(PluginConfig.OfflineUserId.Value, out steamId))

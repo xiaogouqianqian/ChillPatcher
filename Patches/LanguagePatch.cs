@@ -12,10 +12,11 @@ namespace ChillPatcher.Patches
     {
         static bool Prefix(ref GameLanguageType __result)
         {
-            // 从配置读取语言设置
+            if (!PluginConfig.EnableWallpaperEngineMode.Value)
+                return true; // 不屏蔽，执行原方法
+                
             int languageValue = PluginConfig.DefaultLanguage.Value;
             __result = (GameLanguageType)languageValue;
-            
             Plugin.Logger.LogInfo($"[ChillPatcher] GetDefaultLanguage - 返回配置的语言: {__result} ({languageValue})");
             return false; // 阻止原方法执行
         }

@@ -30,6 +30,9 @@ namespace ChillPatcher.Patches
     {
         static bool Prefix(ref bool __result)
         {
+            if (!PluginConfig.EnableWallpaperEngineMode.Value)
+                return true; // 不屏蔽，执行原方法
+                
             __result = true; // 始终返回 true，表示"已初始化"
             return false; // 阻止原方法执行
         }
