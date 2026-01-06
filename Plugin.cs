@@ -538,13 +538,6 @@ namespace ChillPatcher
 
             Logger.LogInfo($"Synced {addedCount} songs to game");
 
-            // 更新 CurrentAudioTag 包含所有自定义 Tag
-            if (allCustomTagBits != 0)
-            {
-                var currentTag = SaveDataManager.Instance.MusicSetting.CurrentAudioTag.Value;
-                SaveDataManager.Instance.MusicSetting.CurrentAudioTag.Value = currentTag | allCustomTagBits;
-                Logger.LogInfo($"Updated CurrentAudioTag with custom tags: {allCustomTagBits}");
-            }
 
             // 将自定义 Tag 添加到下拉菜单
             foreach (var tag in allTags)

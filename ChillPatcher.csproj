@@ -1,217 +1,205 @@
 <Project Sdk="Microsoft.NET.Sdk">
 
-  <PropertyGroup>
-    <TargetFramework>net472</TargetFramework>
-    <LangVersion>latest</LangVersion>
-    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
-    <GenerateAssemblyInfo>false</GenerateAssemblyInfo>
-    <GenerateTargetFrameworkAttribute>false</GenerateTargetFrameworkAttribute>
-    <AppendTargetFrameworkToOutputPath>false</AppendTargetFrameworkToOutputPath>
-    <CopyLocalLockFileAssemblies>true</CopyLocalLockFileAssemblies>
-    <AssemblyName>ChillPatcher</AssemblyName>
-    <OutputPath>bin\</OutputPath>
-  </PropertyGroup>
+	<PropertyGroup>
+		<TargetFramework>net472</TargetFramework>
+		<LangVersion>latest</LangVersion>
+		<AllowUnsafeBlocks>true</AllowUnsafeBlocks>
+		<GenerateAssemblyInfo>false</GenerateAssemblyInfo>
+		<GenerateTargetFrameworkAttribute>false</GenerateTargetFrameworkAttribute>
+		<AppendTargetFrameworkToOutputPath>false</AppendTargetFrameworkToOutputPath>
+		<CopyLocalLockFileAssemblies>true</CopyLocalLockFileAssemblies>
+		<AssemblyName>ChillPatcher</AssemblyName>
+		<OutputPath>bin\</OutputPath>
+	</PropertyGroup>
 
-  <!-- 引用 SDK 项目 -->
-  <ItemGroup>
-    <ProjectReference Include="ChillPatcher.SDK\ChillPatcher.SDK.csproj" />
-  </ItemGroup>
+	<PropertyGroup>
+		<GameManagedPath>E:\steam\steamapps\common\wallpaper_engine\projects\myprojects\chill_with_you\Chill With You_Data\Managed</GameManagedPath>
+		<BepInExCorePath>E:\steam\steamapps\common\wallpaper_engine\projects\myprojects\chill_with_you\BepInEx\core</BepInExCorePath>
+	</PropertyGroup>
 
-  <ItemGroup>
-    <!-- Exclude game source files -->
-    <Compile Remove="game\**" />
-    <EmbeddedResource Remove="game\**" />
-    <None Remove="game\**" />
-    <!-- Exclude SDK project sources (referenced as project) -->
-    <Compile Remove="ChillPatcher.SDK\**" />
-    <EmbeddedResource Remove="ChillPatcher.SDK\**" />
-    <None Remove="ChillPatcher.SDK\**" />
-    <!-- Exclude module project sources -->
-    <Compile Remove="ChillPatcher.Module.LocalFolder\**" />
-    <EmbeddedResource Remove="ChillPatcher.Module.LocalFolder\**" />
-    <None Remove="ChillPatcher.Module.LocalFolder\**" />
-    <!-- Exclude Netease module sources (built separately) -->
-    <Compile Remove="ChillPatcher.Module.Netease\**" />
-    <EmbeddedResource Remove="ChillPatcher.Module.Netease\**" />
-    <None Remove="ChillPatcher.Module.Netease\**" />
-    <!-- Exclude rime sources (librime, rime-schemas, etc.) -->
-    <Compile Remove="rime\**" />
-    <EmbeddedResource Remove="rime\**" />
-    <None Remove="rime\**" />
-    <!-- Exclude netease_bridge sources (Go code, built separately) -->
-    <Compile Remove="netease_bridge\**" />
-    <EmbeddedResource Remove="netease_bridge\**" />
-    <None Remove="netease_bridge\**" />
-    <!-- Exclude build directory -->
-    <Compile Remove="build\**" />
-    <EmbeddedResource Remove="build\**" />
-    <None Remove="build\**" />
-    <!-- Exclude NeteaseTest project -->
-    <Compile Remove="NeteaseTest\**" />
-    <EmbeddedResource Remove="NeteaseTest\**" />
-    <None Remove="NeteaseTest\**" />
-  </ItemGroup>
+	<ItemGroup>
+		<ProjectReference Include="ChillPatcher.SDK\ChillPatcher.SDK.csproj" />
+	</ItemGroup>
 
-  <ItemGroup>
-    <!-- Embedded Resources -->
-    <EmbeddedResource Include="covers/defaultcover.png">
-      <LogicalName>ChillPatcher.Resources.defaultcover.png</LogicalName>
-    </EmbeddedResource>
-    <EmbeddedResource Include="covers/loading.png">
-      <LogicalName>ChillPatcher.Resources.loading.png</LogicalName>
-    </EmbeddedResource>
-    <EmbeddedResource Include="covers/localcover.jpg">
-      <LogicalName>ChillPatcher.Resources.localcover.jpg</LogicalName>
-    </EmbeddedResource>
-    <EmbeddedResource Include="covers/gamecover1.jpg">
-      <LogicalName>ChillPatcher.Resources.gamecover1.jpg</LogicalName>
-    </EmbeddedResource>
-    <EmbeddedResource Include="covers/gamecover2.jpg">
-      <LogicalName>ChillPatcher.Resources.gamecover2.jpg</LogicalName>
-    </EmbeddedResource>
-    <EmbeddedResource Include="covers/gamecover3.png">
-      <LogicalName>ChillPatcher.Resources.gamecover3.png</LogicalName>
-    </EmbeddedResource>
-  </ItemGroup>
+	<ItemGroup>
+		<Compile Remove="game\**" />
+		<EmbeddedResource Remove="game\**" />
+		<None Remove="game\**" />
+		<Compile Remove="ChillPatcher.SDK\**" />
+		<EmbeddedResource Remove="ChillPatcher.SDK\**" />
+		<None Remove="ChillPatcher.SDK\**" />
 
-  <ItemGroup>
-    <!-- NuGet Packages -->
-    <PackageReference Include="BepInEx.AssemblyPublicizer.MSBuild" Version="0.4.*" PrivateAssets="all" />
-    <PackageReference Include="NAudio.Wasapi" Version="2.2.1" />
-  </ItemGroup>
+		<Compile Remove="ChillPatcher.Module.LocalFolder\**" />
+		<EmbeddedResource Remove="ChillPatcher.Module.LocalFolder\**" />
+		<None Remove="ChillPatcher.Module.LocalFolder\**" />
 
-  <PropertyGroup>
-    <GamePath>F:\SteamLibrary\steamapps\common\wallpaper_engine\projects\myprojects\chill_with_you\Chill With You_Data\Managed</GamePath>
-  </PropertyGroup>
+		<Compile Remove="ChillPatcher.Module.Netease\**" />
+		<EmbeddedResource Remove="ChillPatcher.Module.Netease\**" />
+		<None Remove="ChillPatcher.Module.Netease\**" />
 
-  <ItemGroup>
-    <!-- BepInEx and Harmony from local references -->
-    <Reference Include="0Harmony">
-      <HintPath>F:\SteamLibrary\steamapps\common\wallpaper_engine\projects\myprojects\chill_with_you\BepInEx\core\0Harmony.dll</HintPath>
-      <Private>False</Private>
-    </Reference>
-    <Reference Include="BepInEx">
-      <HintPath>F:\SteamLibrary\steamapps\common\wallpaper_engine\projects\myprojects\chill_with_you\BepInEx\core\BepInEx.dll</HintPath>
-      <Private>False</Private>
-    </Reference>
-  </ItemGroup>
+		<Compile Remove="ChillPatcher.Module.Bilibili\**" />
+		<EmbeddedResource Remove="ChillPatcher.Module.Bilibili\**" />
+		<None Remove="ChillPatcher.Module.Bilibili\**" />
 
-  <ItemGroup>
-    <!-- Unity Engine -->
-    <Reference Include="UnityEngine">
-      <HintPath>F:\SteamLibrary\steamapps\common\wallpaper_engine\projects\myprojects\chill_with_you\Chill With You_Data\Managed\UnityEngine.dll</HintPath>
-      <Private>False</Private>
-    </Reference>
-    <Reference Include="UnityEngine.CoreModule">
-      <HintPath>F:\SteamLibrary\steamapps\common\wallpaper_engine\projects\myprojects\chill_with_you\Chill With You_Data\Managed\UnityEngine.CoreModule.dll</HintPath>
-      <Private>False</Private>
-    </Reference>
-    <Reference Include="UnityEngine.UI">
-      <HintPath>F:\SteamLibrary\steamapps\common\wallpaper_engine\projects\myprojects\chill_with_you\Chill With You_Data\Managed\UnityEngine.UI.dll</HintPath>
-      <Private>False</Private>
-    </Reference>
-    <Reference Include="UnityEngine.UIModule">
-      <HintPath>F:\SteamLibrary\steamapps\common\wallpaper_engine\projects\myprojects\chill_with_you\Chill With You_Data\Managed\UnityEngine.UIModule.dll</HintPath>
-      <Private>False</Private>
-    </Reference>
-    <Reference Include="UnityEngine.AudioModule">
-      <HintPath>F:\SteamLibrary\steamapps\common\wallpaper_engine\projects\myprojects\chill_with_you\Chill With You_Data\Managed\UnityEngine.AudioModule.dll</HintPath>
-      <Private>False</Private>
-    </Reference>
-    <Reference Include="Unity.TextMeshPro" Publicize="true">
-      <HintPath>F:\SteamLibrary\steamapps\common\wallpaper_engine\projects\myprojects\chill_with_you\Chill With You_Data\Managed\Unity.TextMeshPro.dll</HintPath>
-      <Private>False</Private>
-    </Reference>
-    <Reference Include="UnityEngine.IMGUIModule">
-      <HintPath>F:\SteamLibrary\steamapps\common\wallpaper_engine\projects\myprojects\chill_with_you\Chill With You_Data\Managed\UnityEngine.IMGUIModule.dll</HintPath>
-      <Private>False</Private>
-    </Reference>
-    <Reference Include="UnityEngine.InputLegacyModule">
-      <HintPath>F:\SteamLibrary\steamapps\common\wallpaper_engine\projects\myprojects\chill_with_you\Chill With You_Data\Managed\UnityEngine.InputLegacyModule.dll</HintPath>
-      <Private>False</Private>
-    </Reference>
-    <Reference Include="UnityEngine.ImageConversionModule">
-      <HintPath>F:\SteamLibrary\steamapps\common\wallpaper_engine\projects\myprojects\chill_with_you\Chill With You_Data\Managed\UnityEngine.ImageConversionModule.dll</HintPath>
-      <Private>False</Private>
-    </Reference>
-    <Reference Include="UnityEngine.TextRenderingModule">
-      <HintPath>F:\SteamLibrary\steamapps\common\wallpaper_engine\projects\myprojects\chill_with_you\Chill With You_Data\Managed\UnityEngine.TextRenderingModule.dll</HintPath>
-      <Private>False</Private>
-    </Reference>
-    <Reference Include="UnityEngine.AssetBundleModule">
-      <HintPath>F:\SteamLibrary\steamapps\common\wallpaper_engine\projects\myprojects\chill_with_you\Chill With You_Data\Managed\UnityEngine.AssetBundleModule.dll</HintPath>
-      <Private>False</Private>
-    </Reference>
-    <Reference Include="UnityEngine.UnityWebRequestModule">
-      <HintPath>F:\SteamLibrary\steamapps\common\wallpaper_engine\projects\myprojects\chill_with_you\Chill With You_Data\Managed\UnityEngine.UnityWebRequestModule.dll</HintPath>
-      <Private>False</Private>
-    </Reference>
-    <Reference Include="UnityEngine.UnityWebRequestAudioModule">
-      <HintPath>F:\SteamLibrary\steamapps\common\wallpaper_engine\projects\myprojects\chill_with_you\Chill With You_Data\Managed\UnityEngine.UnityWebRequestAudioModule.dll</HintPath>
-      <Private>False</Private>
-    </Reference>
-    <Reference Include="UnityEngine.UnityWebRequestTextureModule">
-      <HintPath>F:\SteamLibrary\steamapps\common\wallpaper_engine\projects\myprojects\chill_with_you\Chill With You_Data\Managed\UnityEngine.UnityWebRequestTextureModule.dll</HintPath>
-      <Private>False</Private>
-    </Reference>
-  </ItemGroup>
+		<Compile Remove="rime\**" />
+		<EmbeddedResource Remove="rime\**" />
+		<None Remove="rime\**" />
+		<Compile Remove="netease_bridge\**" />
+		<EmbeddedResource Remove="netease_bridge\**" />
+		<None Remove="netease_bridge\**" />
+		<Compile Remove="build\**" />
+		<EmbeddedResource Remove="build\**" />
+		<None Remove="build\**" />
+		<Compile Remove="NeteaseTest\**" />
+		<EmbeddedResource Remove="NeteaseTest\**" />
+		<None Remove="NeteaseTest\**" />
+	</ItemGroup>
 
-  <ItemGroup>
-    <!-- Game DLLs -->
-    <Reference Include="Assembly-CSharp" Publicize="true">
-      <HintPath>F:\SteamLibrary\steamapps\common\wallpaper_engine\projects\myprojects\chill_with_you\Chill With You_Data\Managed\Assembly-CSharp.dll</HintPath>
-      <Private>False</Private>
-    </Reference>
-    <Reference Include="com.rlabrecque.steamworks.net">
-      <HintPath>F:\SteamLibrary\steamapps\common\wallpaper_engine\projects\myprojects\chill_with_you\Chill With You_Data\Managed\com.rlabrecque.steamworks.net.dll</HintPath>
-      <Private>False</Private>
-    </Reference>
-    <!-- UI Framework Dependencies -->
-    <Reference Include="Newtonsoft.Json">
-      <HintPath>F:\SteamLibrary\steamapps\common\wallpaper_engine\projects\myprojects\chill_with_you\Chill With You_Data\Managed\Newtonsoft.Json.dll</HintPath>
-      <Private>False</Private>
-    </Reference>
-    <Reference Include="UniTask">
-      <HintPath>F:\SteamLibrary\steamapps\common\wallpaper_engine\projects\myprojects\chill_with_you\Chill With You_Data\Managed\UniTask.dll</HintPath>
-      <Private>False</Private>
-    </Reference>
-    <Reference Include="ObservableCollections">
-      <HintPath>F:\SteamLibrary\steamapps\common\wallpaper_engine\projects\myprojects\chill_with_you\Chill With You_Data\Managed\ObservableCollections.dll</HintPath>
-      <Private>False</Private>
-    </Reference>
-    <Reference Include="ObservableCollections.R3">
-      <HintPath>F:\SteamLibrary\steamapps\common\wallpaper_engine\projects\myprojects\chill_with_you\Chill With You_Data\Managed\ObservableCollections.R3.dll</HintPath>
-      <Private>False</Private>
-    </Reference>
-    <Reference Include="R3">
-      <HintPath>F:\SteamLibrary\steamapps\common\wallpaper_engine\projects\myprojects\chill_with_you\Chill With You_Data\Managed\R3.dll</HintPath>
-      <Private>False</Private>
-    </Reference>
-    <Reference Include="R3.Unity">
-      <HintPath>F:\SteamLibrary\steamapps\common\wallpaper_engine\projects\myprojects\chill_with_you\Chill With You_Data\Managed\R3.Unity.dll</HintPath>
-      <Private>False</Private>
-    </Reference>
-    <Reference Include="DOTween">
-      <HintPath>F:\SteamLibrary\steamapps\common\wallpaper_engine\projects\myprojects\chill_with_you\Chill With You_Data\Managed\DOTween.dll</HintPath>
-      <Private>False</Private>
-    </Reference>
-    <Reference Include="VContainer">
-      <HintPath>F:\SteamLibrary\steamapps\common\wallpaper_engine\projects\myprojects\chill_with_you\Chill With You_Data\Managed\VContainer.dll</HintPath>
-      <Private>False</Private>
-    </Reference>
-    <Reference Include="FastEnum">
-      <HintPath>F:\SteamLibrary\steamapps\common\wallpaper_engine\projects\myprojects\chill_with_you\Chill With You_Data\Managed\FastEnum.dll</HintPath>
-      <Private>False</Private>
-    </Reference>
-    <Reference Include="AudioManager">
-      <HintPath>F:\SteamLibrary\steamapps\common\wallpaper_engine\projects\myprojects\chill_with_you\Chill With You_Data\Managed\AudioManager.dll</HintPath>
-      <Private>False</Private>
-    </Reference>
-  </ItemGroup>
+	<ItemGroup>
+		<EmbeddedResource Include="covers/defaultcover.png">
+			<LogicalName>ChillPatcher.Resources.defaultcover.png</LogicalName>
+		</EmbeddedResource>
+		<EmbeddedResource Include="covers/loading.png">
+			<LogicalName>ChillPatcher.Resources.loading.png</LogicalName>
+		</EmbeddedResource>
+		<EmbeddedResource Include="covers/localcover.jpg">
+			<LogicalName>ChillPatcher.Resources.localcover.jpg</LogicalName>
+		</EmbeddedResource>
+		<EmbeddedResource Include="covers/gamecover1.jpg">
+			<LogicalName>ChillPatcher.Resources.gamecover1.jpg</LogicalName>
+		</EmbeddedResource>
+		<EmbeddedResource Include="covers/gamecover2.jpg">
+			<LogicalName>ChillPatcher.Resources.gamecover2.jpg</LogicalName>
+		</EmbeddedResource>
+		<EmbeddedResource Include="covers/gamecover3.png">
+			<LogicalName>ChillPatcher.Resources.gamecover3.png</LogicalName>
+		</EmbeddedResource>
+	</ItemGroup>
 
-  <!-- 
-    开发调试：使用 dotnet build 构建，手动复制到游戏目录
-    发布构建：使用 build_release.bat 脚本，自动创建完整的发布目录结构
-  -->
+	<ItemGroup>
+		<PackageReference Include="BepInEx.AssemblyPublicizer.MSBuild" Version="0.4.*" PrivateAssets="all" />
+		<PackageReference Include="NAudio.Wasapi" Version="2.2.1" />
+	</ItemGroup>
+
+	<ItemGroup>
+		<Reference Include="0Harmony">
+			<HintPath>$(BepInExCorePath)\0Harmony.dll</HintPath>
+			<Private>False</Private>
+		</Reference>
+		<Reference Include="BepInEx">
+			<HintPath>$(BepInExCorePath)\BepInEx.dll</HintPath>
+			<Private>False</Private>
+		</Reference>
+	</ItemGroup>
+
+	<ItemGroup>
+		<Reference Include="UnityEngine">
+			<HintPath>$(GameManagedPath)\UnityEngine.dll</HintPath>
+			<Private>False</Private>
+		</Reference>
+		<Reference Include="UnityEngine.CoreModule">
+			<HintPath>$(GameManagedPath)\UnityEngine.CoreModule.dll</HintPath>
+			<Private>False</Private>
+		</Reference>
+		<Reference Include="UnityEngine.UI">
+			<HintPath>$(GameManagedPath)\UnityEngine.UI.dll</HintPath>
+			<Private>False</Private>
+		</Reference>
+		<Reference Include="UnityEngine.UIModule">
+			<HintPath>$(GameManagedPath)\UnityEngine.UIModule.dll</HintPath>
+			<Private>False</Private>
+		</Reference>
+		<Reference Include="UnityEngine.AudioModule">
+			<HintPath>$(GameManagedPath)\UnityEngine.AudioModule.dll</HintPath>
+			<Private>False</Private>
+		</Reference>
+		<Reference Include="Unity.TextMeshPro" Publicize="true">
+			<HintPath>$(GameManagedPath)\Unity.TextMeshPro.dll</HintPath>
+			<Private>False</Private>
+		</Reference>
+		<Reference Include="UnityEngine.IMGUIModule">
+			<HintPath>$(GameManagedPath)\UnityEngine.IMGUIModule.dll</HintPath>
+			<Private>False</Private>
+		</Reference>
+		<Reference Include="UnityEngine.InputLegacyModule">
+			<HintPath>$(GameManagedPath)\UnityEngine.InputLegacyModule.dll</HintPath>
+			<Private>False</Private>
+		</Reference>
+		<Reference Include="UnityEngine.ImageConversionModule">
+			<HintPath>$(GameManagedPath)\UnityEngine.ImageConversionModule.dll</HintPath>
+			<Private>False</Private>
+		</Reference>
+		<Reference Include="UnityEngine.TextRenderingModule">
+			<HintPath>$(GameManagedPath)\UnityEngine.TextRenderingModule.dll</HintPath>
+			<Private>False</Private>
+		</Reference>
+		<Reference Include="UnityEngine.AssetBundleModule">
+			<HintPath>$(GameManagedPath)\UnityEngine.AssetBundleModule.dll</HintPath>
+			<Private>False</Private>
+		</Reference>
+		<Reference Include="UnityEngine.UnityWebRequestModule">
+			<HintPath>$(GameManagedPath)\UnityEngine.UnityWebRequestModule.dll</HintPath>
+			<Private>False</Private>
+		</Reference>
+		<Reference Include="UnityEngine.UnityWebRequestAudioModule">
+			<HintPath>$(GameManagedPath)\UnityEngine.UnityWebRequestAudioModule.dll</HintPath>
+			<Private>False</Private>
+		</Reference>
+		<Reference Include="UnityEngine.UnityWebRequestTextureModule">
+			<HintPath>$(GameManagedPath)\UnityEngine.UnityWebRequestTextureModule.dll</HintPath>
+			<Private>False</Private>
+		</Reference>
+	</ItemGroup>
+
+	<ItemGroup>
+		<Reference Include="Assembly-CSharp" Publicize="true">
+			<HintPath>$(GameManagedPath)\Assembly-CSharp.dll</HintPath>
+			<Private>False</Private>
+		</Reference>
+		<Reference Include="com.rlabrecque.steamworks.net">
+			<HintPath>$(GameManagedPath)\com.rlabrecque.steamworks.net.dll</HintPath>
+			<Private>False</Private>
+		</Reference>
+		<Reference Include="Newtonsoft.Json">
+			<HintPath>$(GameManagedPath)\Newtonsoft.Json.dll</HintPath>
+			<Private>False</Private>
+		</Reference>
+		<Reference Include="UniTask">
+			<HintPath>$(GameManagedPath)\UniTask.dll</HintPath>
+			<Private>False</Private>
+		</Reference>
+		<Reference Include="ObservableCollections">
+			<HintPath>$(GameManagedPath)\ObservableCollections.dll</HintPath>
+			<Private>False</Private>
+		</Reference>
+		<Reference Include="ObservableCollections.R3">
+			<HintPath>$(GameManagedPath)\ObservableCollections.R3.dll</HintPath>
+			<Private>False</Private>
+		</Reference>
+		<Reference Include="R3">
+			<HintPath>$(GameManagedPath)\R3.dll</HintPath>
+			<Private>False</Private>
+		</Reference>
+		<Reference Include="R3.Unity">
+			<HintPath>$(GameManagedPath)\R3.Unity.dll</HintPath>
+			<Private>False</Private>
+		</Reference>
+		<Reference Include="DOTween">
+			<HintPath>$(GameManagedPath)\DOTween.dll</HintPath>
+			<Private>False</Private>
+		</Reference>
+		<Reference Include="VContainer">
+			<HintPath>$(GameManagedPath)\VContainer.dll</HintPath>
+			<Private>False</Private>
+		</Reference>
+		<Reference Include="FastEnum">
+			<HintPath>$(GameManagedPath)\FastEnum.dll</HintPath>
+			<Private>False</Private>
+		</Reference>
+		<Reference Include="AudioManager">
+			<HintPath>$(GameManagedPath)\AudioManager.dll</HintPath>
+			<Private>False</Private>
+		</Reference>
+	</ItemGroup>
 
 </Project>
