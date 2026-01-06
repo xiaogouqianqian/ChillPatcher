@@ -17,14 +17,14 @@ using BepInEx.Configuration;
 namespace ChillPatcher.Module.Bilibili
 {
     [MusicModule("com.chillpatcher.bilibili", "Bilibili Music",
-        Version = "5.2.0",
-        Author = "User",
+        Version = "1.0.0",
+        Author = "xgqq",
         Description = "Streaming via FFmpeg")]
     public class BilibiliModule : IMusicModule, IStreamingMusicSourceProvider, ICoverProvider
     {
         public string ModuleId => "com.chillpatcher.bilibili";
         public string DisplayName => "Bilibili Music";
-        public string Version => "5.2.0";
+        public string Version => "1.0.0";
         public int Priority => 10;
         public ModuleCapabilities Capabilities => new ModuleCapabilities { CanFavorite = true, ProvidesCover = true };
         public MusicSourceType SourceType => MusicSourceType.Stream;
