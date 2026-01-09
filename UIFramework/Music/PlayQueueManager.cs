@@ -21,84 +21,84 @@ namespace ChillPatcher.UIFramework.Music
     {
         private static PlayQueueManager _instance;
         public static PlayQueueManager Instance => _instance ??= new PlayQueueManager();
-        
+
         /// <summary>
         /// 播放队列（第一个是正在播放的）
         /// </summary>
         private List<GameAudioInfo> _queue = new List<GameAudioInfo>();
-        
+
         /// <summary>
         /// 播放历史记录（最近播放的在前面）
         /// </summary>
         private List<GameAudioInfo> _history = new List<GameAudioInfo>();
-        
+
         /// <summary>
         /// 历史位置指针（-1 表示不在历史回溯模式，>=0 表示当前在历史中的位置）
         /// </summary>
         private int _historyPosition = -1;
-        
+
         /// <summary>
         /// 扩展步数（当历史到头后继续往前探索播放列表的步数）
         /// </summary>
         private int _extendedSteps = 0;
-        
+
         /// <summary>
         /// 最大历史记录数量
         /// </summary>
         public const int MaxHistoryCount = 50;
-        
+
         /// <summary>
         /// 只读的队列访问
         /// </summary>
         public IReadOnlyList<GameAudioInfo> Queue => _queue;
-        
+
         /// <summary>
         /// 只读的历史记录访问
         /// </summary>
         public IReadOnlyList<GameAudioInfo> History => _history;
-        
+
         /// <summary>
         /// 播放指针：在 CurrentPlayList 中的下一个播放位置
         /// </summary>
         public int PlaylistPosition { get; private set; } = 0;
-        
+
         /// <summary>
         /// 当前正在播放的歌曲（队列第一个）
         /// </summary>
         public GameAudioInfo CurrentPlaying => _queue.Count > 0 ? _queue[0] : null;
-        
+
         /// <summary>
         /// 队列是否为空（不包括正在播放的）
         /// </summary>
         public bool IsQueueEmpty => _queue.Count <= 1;
-        
+
         /// <summary>
         /// 队列中待播放的歌曲数量（不包括正在播放的）
         /// </summary>
         public int PendingCount => Math.Max(0, _queue.Count - 1);
-        
+
         /// <summary>
         /// 扩展步数（当历史到头后继续往前探索的步数）
         /// </summary>
         public int ExtendedSteps => _extendedSteps;
-        
+
         /// <summary>
         /// 是否在扩展模式中（历史到头后继续往前探索）
         /// </summary>
         public bool IsInExtendedMode => _extendedSteps > 0;
-        
+
         // 事件
         public event Action OnQueueChanged;
         public event Action OnHistoryChanged;
         public event Action<GameAudioInfo> OnCurrentChanged;
         public event Action<int> OnPlaylistPositionChanged;
-        
-        private PlayQueueManager() 
+
+        private PlayQueueManager()
         {
             // 订阅歌曲排除状态变化事件
             MusicService_Excluded_Patch.OnSongExcludedChanged += HandleSongExcludedChanged;
         }
-        
+
         /// <summary>
         /// 处理歌曲排除状态变化
         /// </summary>
@@ -111,9 +111,9 @@ namespace ChillPatcher.UIFramework.Music
             }
             // 如果是取消排除，不需要特别处理
         }
-        
+
         #region 基础队列操作
-        
+
         /// <summary>
         /// 清空整个队列
         /// </summary>
@@ -122,7 +122,7 @@ namespace ChillPatcher.UIFramework.Music
             _queue.Clear();
             OnQueueChanged?.Invoke();
         }
-        
+
         /// <summary>
         /// 清空队列但保留正在播放的
         /// </summary>
@@ -136,11 +136,11 @@ namespace ChillPatcher.UIFramework.Music
                 OnQueueChanged?.Invoke();
             }
         }
-        
+
         #endregion
-        
+
         #region 播放历史记录操作
-        
+
         /// <summary>
         /// 添加歌曲到播放历史
         /// 如果在历史回溯模式中，会丢弃当前位置之前的历史（类似浏览器历史行为）
@@ -148,7 +148,7 @@ namespace ChillPatcher.UIFramework.Music
         public void AddToHistory(GameAudioInfo audio)
         {
             if (audio == null) return;
-            
+
             // 如果在历史回溯模式中，丢弃当前位置之前的历史
             // 例如：历史是 [5,4,3,2,1]，_historyPosition=2（正在播放3）
             // 添加新歌曲6后，应该变成 [6,3,2,1]（丢弃5和4）
@@ -158,28 +158,28 @@ namespace ChillPatcher.UIFramework.Music
                 _history.RemoveRange(0, _historyPosition);
                 Plugin.Log.LogDebug($"[Queue] Removed {_historyPosition} items from history (before current position)");
             }
-            
+
             // 如果新歌曲已经在历史记录中，先移除（避免重复）
             _history.RemoveAll(a => a.UUID == audio.UUID);
-            
+
             // 添加到最前面
             _history.Insert(0, audio);
-            
+
             // 重置历史位置指针（新播放的歌曲，退出回溯模式）
             _historyPosition = -1;
-            
+
             // 重置扩展步数
             _extendedSteps = 0;
-            
+
             // 限制历史记录数量
             while (_history.Count > MaxHistoryCount)
             {
                 _history.RemoveAt(_history.Count - 1);
             }
-            
+
             Plugin.Log.LogDebug($"[Queue] Added to history: {audio.AudioClipName}, history size: {_history.Count}");
         }
-        
+
         /// <summary>
         /// 是否可以回退到上一首
         /// </summary>
@@ -201,12 +201,12 @@ namespace ChillPatcher.UIFramework.Music
                 }
             }
         }
-        
+
         /// <summary>
         /// 是否在历史回溯模式中
         /// </summary>
         public bool IsInHistoryMode => _historyPosition >= 0;
-        
+
         /// <summary>
         /// 回退到上一首（从历史记录）
         /// 注意：此方法不处理扩展模式，扩展模式需要调用 GoPreviousExtended
@@ -215,7 +215,7 @@ namespace ChillPatcher.UIFramework.Music
         public GameAudioInfo GoPrevious()
         {
             int nextPos;
-            
+
             if (_historyPosition < 0)
             {
                 // 第一次上一首：从位置 1 开始（跳过当前播放的位置 0）
@@ -226,20 +226,20 @@ namespace ChillPatcher.UIFramework.Music
                 // 已经在历史模式，继续后退
                 nextPos = _historyPosition + 1;
             }
-            
+
             if (nextPos >= _history.Count)
             {
                 Plugin.Log.LogInfo("[Queue] No more history to go back, need extended mode");
                 return null;
             }
-            
+
             _historyPosition = nextPos;
             var audio = _history[_historyPosition];
-            
+
             Plugin.Log.LogInfo($"[Queue] Go previous: {audio.AudioClipName}, history position: {_historyPosition}/{_history.Count - 1}");
             return audio;
         }
-        
+
         /// <summary>
         /// 在扩展模式下回退到播放列表的前一首
         /// 当历史到头后调用此方法继续往前探索
@@ -254,7 +254,7 @@ namespace ChillPatcher.UIFramework.Music
             {
                 return null;
             }
-            
+
             // 找到当前歌曲在播放列表中的位置
             int currentIndex = -1;
             for (int i = 0; i < currentPlaylist.Count; i++)
@@ -265,20 +265,20 @@ namespace ChillPatcher.UIFramework.Music
                     break;
                 }
             }
-            
+
             if (currentIndex < 0)
             {
                 Plugin.Log.LogWarning("[Queue] Current audio not found in playlist for extended mode");
                 return null;
             }
-            
+
             // 从当前位置往前找一首不被排除的歌曲
             int playlistCount = currentPlaylist.Count;
             for (int i = 1; i <= playlistCount; i++)
             {
                 int prevIndex = (currentIndex - i + playlistCount) % playlistCount;
                 var candidate = currentPlaylist[prevIndex];
-                
+
                 bool isExcluded = isExcludedFunc?.Invoke(candidate) ?? false;
                 if (!isExcluded)
                 {
@@ -288,11 +288,11 @@ namespace ChillPatcher.UIFramework.Music
                     return candidate;
                 }
             }
-            
+
             Plugin.Log.LogWarning("[Queue] Cannot find previous non-excluded song in playlist");
             return null;
         }
-        
+
         /// <summary>
         /// 在扩展模式下前进到播放列表的下一首（消耗扩展步数）
         /// </summary>
@@ -307,12 +307,12 @@ namespace ChillPatcher.UIFramework.Music
                 Plugin.Log.LogInfo("[Queue] Extended steps exhausted, return to history");
                 return null;
             }
-            
+
             if (currentPlaylist == null || currentPlaylist.Count == 0 || currentAudio == null)
             {
                 return null;
             }
-            
+
             // 找到当前歌曲在播放列表中的位置
             int currentIndex = -1;
             for (int i = 0; i < currentPlaylist.Count; i++)
@@ -323,20 +323,20 @@ namespace ChillPatcher.UIFramework.Music
                     break;
                 }
             }
-            
+
             if (currentIndex < 0)
             {
                 Plugin.Log.LogWarning("[Queue] Current audio not found in playlist for extended mode");
                 return null;
             }
-            
+
             // 从当前位置往后找一首不被排除的歌曲
             int playlistCount = currentPlaylist.Count;
             for (int i = 1; i <= playlistCount; i++)
             {
                 int nextIndex = (currentIndex + i) % playlistCount;
                 var candidate = currentPlaylist[nextIndex];
-                
+
                 bool isExcluded = isExcludedFunc?.Invoke(candidate) ?? false;
                 if (!isExcluded)
                 {
@@ -346,11 +346,11 @@ namespace ChillPatcher.UIFramework.Music
                     return candidate;
                 }
             }
-            
+
             Plugin.Log.LogWarning("[Queue] Cannot find next non-excluded song in playlist");
             return null;
         }
-        
+
         /// <summary>
         /// 前进到下一首（在历史回溯模式中）
         /// 注意：此方法不处理扩展模式，扩展模式需要调用 GoNextExtended
@@ -365,14 +365,14 @@ namespace ChillPatcher.UIFramework.Music
                 Plugin.Log.LogInfo("[Queue] Exiting history mode, use queue for next");
                 return null;
             }
-            
+
             _historyPosition--;
             var audio = _history[_historyPosition];
-            
+
             Plugin.Log.LogInfo($"[Queue] Go next in history: {audio.AudioClipName}, history position: {_historyPosition}/{_history.Count - 1}");
             return audio;
         }
-        
+
         /// <summary>
         /// 重置历史位置（退出回溯模式）
         /// </summary>
@@ -380,7 +380,7 @@ namespace ChillPatcher.UIFramework.Music
         {
             _historyPosition = -1;
         }
-        
+
         /// <summary>
         /// 重置扩展步数
         /// </summary>
@@ -389,7 +389,7 @@ namespace ChillPatcher.UIFramework.Music
             _extendedSteps = 0;
             Plugin.Log.LogDebug("[Queue] Extended steps reset");
         }
-        
+
         /// <summary>
         /// 清空播放历史
         /// 如果不在历史模式：直接清空所有历史
@@ -408,10 +408,10 @@ namespace ChillPatcher.UIFramework.Music
                 // 在历史模式或扩展模式中
                 // 保留当前播放的歌曲（队列第一个）
                 GameAudioInfo currentPlaying = CurrentPlaying;
-                
+
                 // 清空历史
                 _history.Clear();
-                
+
                 // 如果有当前播放的歌曲，把它放回历史第一位
                 if (currentPlaying != null)
                 {
@@ -422,37 +422,37 @@ namespace ChillPatcher.UIFramework.Music
                 {
                     Plugin.Log.LogInfo("[Queue] History cleared (was in history/extended mode)");
                 }
-                
+
                 // 清空扩展步数
                 _extendedSteps = 0;
-                
+
                 // 退出历史模式
                 _historyPosition = -1;
             }
-            
+
             // 触发历史变化事件
             OnHistoryChanged?.Invoke();
         }
-        
+
         /// <summary>
         /// 历史记录数量
         /// </summary>
         public int HistoryCount => _history.Count;
-        
+
         /// <summary>
         /// 当前历史位置
         /// </summary>
         public int HistoryPosition => _historyPosition;
-        
+
         /// <summary>
         /// 从历史记录中移除指定歌曲（当用户排除歌曲时调用）
         /// </summary>
         public void RemoveFromHistory(string uuid)
         {
             if (string.IsNullOrEmpty(uuid)) return;
-            
+
             int removedCount = _history.RemoveAll(a => a.UUID == uuid);
-            
+
             if (removedCount > 0)
             {
                 // 如果在历史回溯模式中，调整位置
@@ -460,11 +460,11 @@ namespace ChillPatcher.UIFramework.Music
                 {
                     _historyPosition = _history.Count - 1;
                 }
-                
+
                 Plugin.Log.LogDebug($"[Queue] Removed {removedCount} songs from history with UUID: {uuid}");
             }
         }
-        
+
         /// <summary>
         /// 当用户排除歌曲时，从队列和历史中移除
         /// </summary>
@@ -472,7 +472,7 @@ namespace ChillPatcher.UIFramework.Music
         public void OnSongExcluded(string uuid)
         {
             if (string.IsNullOrEmpty(uuid)) return;
-            
+
             // 从队列移除（第一个是正在播放的，保留）
             bool inQueue = false;
             for (int i = _queue.Count - 1; i >= 1; i--)
@@ -484,18 +484,18 @@ namespace ChillPatcher.UIFramework.Music
                     inQueue = true;
                 }
             }
-            
+
             if (inQueue)
             {
                 OnQueueChanged?.Invoke();
             }
-            
+
             // 从历史记录移除
             RemoveFromHistory(uuid);
         }
-        
+
         #endregion
-        
+
         #region 队列操作
         public void Enqueue(GameAudioInfo audio)
         {
@@ -504,7 +504,7 @@ namespace ChillPatcher.UIFramework.Music
             OnQueueChanged?.Invoke();
             Plugin.Log.LogInfo($"[Queue] Enqueued: {audio.AudioClipName}, queue size: {_queue.Count}");
         }
-        
+
         /// <summary>
         /// 添加多首歌曲到队列末尾
         /// </summary>
@@ -516,7 +516,7 @@ namespace ChillPatcher.UIFramework.Music
             OnQueueChanged?.Invoke();
             Plugin.Log.LogInfo($"[Queue] Enqueued {list.Count} songs, queue size: {_queue.Count}");
         }
-        
+
         /// <summary>
         /// 插入歌曲到指定位置
         /// </summary>
@@ -530,7 +530,7 @@ namespace ChillPatcher.UIFramework.Music
             OnQueueChanged?.Invoke();
             Plugin.Log.LogInfo($"[Queue] Inserted at {index}: {audio.AudioClipName}");
         }
-        
+
         /// <summary>
         /// 插入为"下一首播放"（队列第二个位置）
         /// 会清空历史模式和扩展步数
@@ -544,10 +544,10 @@ namespace ChillPatcher.UIFramework.Music
                 _historyPosition = -1;
                 _extendedSteps = 0;
             }
-            
+
             Insert(1, audio);
         }
-        
+
         /// <summary>
         /// 从队列移除指定歌曲
         /// </summary>
@@ -562,7 +562,7 @@ namespace ChillPatcher.UIFramework.Music
             }
             return removed;
         }
-        
+
         /// <summary>
         /// 从队列移除指定索引的歌曲
         /// </summary>
@@ -575,7 +575,7 @@ namespace ChillPatcher.UIFramework.Music
             Plugin.Log.LogInfo($"[Queue] Removed at {index}: {audio?.AudioClipName}");
             return true;
         }
-        
+
         /// <summary>
         /// 移动队列中的歌曲位置
         /// </summary>
@@ -584,14 +584,14 @@ namespace ChillPatcher.UIFramework.Music
             if (fromIndex < 0 || fromIndex >= _queue.Count) return;
             if (toIndex < 0 || toIndex >= _queue.Count) return;
             if (fromIndex == toIndex) return;
-            
+
             var item = _queue[fromIndex];
             _queue.RemoveAt(fromIndex);
             _queue.Insert(toIndex, item);
             OnQueueChanged?.Invoke();
             Plugin.Log.LogInfo($"[Queue] Moved from {fromIndex} to {toIndex}: {item.AudioClipName}");
         }
-        
+
         /// <summary>
         /// 获取队列中歌曲的索引
         /// </summary>
@@ -599,7 +599,7 @@ namespace ChillPatcher.UIFramework.Music
         {
             return _queue.IndexOf(audio);
         }
-        
+
         /// <summary>
         /// 检查歌曲是否在队列中（通过UUID比较）
         /// </summary>
@@ -608,7 +608,7 @@ namespace ChillPatcher.UIFramework.Music
             if (string.IsNullOrEmpty(uuid)) return false;
             return _queue.Any(a => a.UUID == uuid);
         }
-        
+
         /// <summary>
         /// 通过UUID从队列移除歌曲
         /// </summary>
@@ -622,7 +622,7 @@ namespace ChillPatcher.UIFramework.Music
             }
             return false;
         }
-        
+
         /// <summary>
         /// 检查队列中是否包含指定歌曲
         /// </summary>
@@ -630,7 +630,7 @@ namespace ChillPatcher.UIFramework.Music
         {
             return _queue.Contains(audio);
         }
-        
+
         /// <summary>
         /// 获取队列的副本
         /// </summary>
@@ -638,11 +638,11 @@ namespace ChillPatcher.UIFramework.Music
         {
             return new List<GameAudioInfo>(_queue);
         }
-        
+
         #endregion
-        
+
         #region 播放控制
-        
+
         /// <summary>
         /// 设置当前播放（替换队列第一个）
         /// 用于：点击播放列表中的歌曲
@@ -654,7 +654,7 @@ namespace ChillPatcher.UIFramework.Music
         public void SetCurrentPlaying(GameAudioInfo audio, bool updatePosition = false, int newPosition = 0, bool addToHistory = true)
         {
             if (audio == null) return;
-            
+
             if (_queue.Count > 0)
             {
                 _queue[0] = audio;
@@ -663,24 +663,24 @@ namespace ChillPatcher.UIFramework.Music
             {
                 _queue.Add(audio);
             }
-            
+
             if (updatePosition)
             {
                 PlaylistPosition = newPosition;
                 OnPlaylistPositionChanged?.Invoke(PlaylistPosition);
             }
-            
+
             // 添加到历史记录
             if (addToHistory)
             {
                 AddToHistory(audio);
             }
-            
+
             OnCurrentChanged?.Invoke(audio);
             OnQueueChanged?.Invoke();
             Plugin.Log.LogInfo($"[Queue] Set current playing: {audio.AudioClipName}, position: {PlaylistPosition}");
         }
-        
+
         /// <summary>
         /// 手动触发当前播放变更事件（用于外部代码直接操作队列后通知）
         /// </summary>
@@ -689,7 +689,7 @@ namespace ChillPatcher.UIFramework.Music
             OnCurrentChanged?.Invoke(audio);
             OnQueueChanged?.Invoke();
         }
-        
+
         /// <summary>
         /// 播放完成，前进到下一首
         /// </summary>
@@ -704,7 +704,7 @@ namespace ChillPatcher.UIFramework.Music
             {
                 _queue.RemoveAt(0);
             }
-            
+
             // 如果队列还有歌曲，播放下一个（队列中的歌曲不检查排除，因为是用户手动添加的）
             if (_queue.Count > 0)
             {
@@ -716,11 +716,11 @@ namespace ChillPatcher.UIFramework.Music
                 Plugin.Log.LogInfo($"[Queue] Advanced to next in queue: {next.AudioClipName}");
                 return next;
             }
-            
+
             // 队列为空，从播放列表补充
             return FillFromPlaylist(currentPlaylist, isShuffle, isExcludedFunc);
         }
-        
+
         /// <summary>
         /// 播放完成，前进到下一首（异步版本，支持增长列表）
         /// </summary>
@@ -730,8 +730,8 @@ namespace ChillPatcher.UIFramework.Music
         /// <param name="getUpdatedPlaylistFunc">获取更新后播放列表的函数（在加载更多后调用）</param>
         /// <returns>下一首要播放的歌曲，如果没有则返回 null</returns>
         public async Task<GameAudioInfo> AdvanceToNextAsync(
-            IReadOnlyList<GameAudioInfo> currentPlaylist, 
-            bool isShuffle, 
+            IReadOnlyList<GameAudioInfo> currentPlaylist,
+            bool isShuffle,
             Func<GameAudioInfo, bool> isExcludedFunc = null,
             Func<IReadOnlyList<GameAudioInfo>> getUpdatedPlaylistFunc = null)
         {
@@ -740,7 +740,7 @@ namespace ChillPatcher.UIFramework.Music
             {
                 _queue.RemoveAt(0);
             }
-            
+
             // 如果队列还有歌曲，播放下一个（队列中的歌曲不检查排除，因为是用户手动添加的）
             if (_queue.Count > 0)
             {
@@ -752,11 +752,11 @@ namespace ChillPatcher.UIFramework.Music
                 Plugin.Log.LogInfo($"[Queue] Advanced to next in queue: {next.AudioClipName}");
                 return next;
             }
-            
+
             // 队列为空，从播放列表补充
             return await FillFromPlaylistAsync(currentPlaylist, isShuffle, isExcludedFunc, getUpdatedPlaylistFunc);
         }
-        
+
         /// <summary>
         /// 从播放列表补充一首到队列（会跳过排除的歌曲）
         /// </summary>
@@ -770,79 +770,50 @@ namespace ChillPatcher.UIFramework.Music
                 Plugin.Log.LogWarning("[Queue] Cannot fill: playlist is empty");
                 return null;
             }
-            
+
             GameAudioInfo next = null;
             int playlistCount = currentPlaylist.Count;
-            
-            if (isShuffle)
+
+            // 修复：无论是否随机模式，都按照当前播放列表的顺序播放
+            // 因为当开启随机模式时，currentPlaylist 已经是随机排序过的列表了
+            // 原来的代码在 random 模式下会忽略列表顺序重新随机选，导致用户看到的列表顺序无效
+
+            for (int i = 0; i < playlistCount; i++)
             {
-                // 随机模式：随机选一首，如果被排除则重试
-                var random = new System.Random();
-                
-                // 遍历整个列表尝试找到一首不被排除的歌曲
-                for (int attempt = 0; attempt < playlistCount; attempt++)
+                int index = (PlaylistPosition + i) % playlistCount;
+                var candidate = currentPlaylist[index];
+
+                bool isExcluded = isExcludedFunc?.Invoke(candidate) ?? false;
+                if (!isExcluded)
                 {
-                    int randomIndex = random.Next(playlistCount);
-                    var candidate = currentPlaylist[randomIndex];
-                    
-                    bool isExcluded = isExcludedFunc?.Invoke(candidate) ?? false;
-                    if (!isExcluded)
-                    {
-                        next = candidate;
-                        // 更新播放指针到随机选中的位置 + 1
-                        PlaylistPosition = (randomIndex + 1) % playlistCount;
-                        OnPlaylistPositionChanged?.Invoke(PlaylistPosition);
-                        Plugin.Log.LogInfo($"[Queue] Filled from playlist (shuffle): {next.AudioClipName}, new position: {PlaylistPosition}");
-                        break;
-                    }
-                    Plugin.Log.LogDebug($"[Queue] Shuffle: skipping excluded song: {candidate.AudioClipName}");
+                    next = candidate;
+                    // 播放指针移到下一个位置
+                    PlaylistPosition = (index + 1) % playlistCount;
+                    OnPlaylistPositionChanged?.Invoke(PlaylistPosition);
+
+                    string modeName = isShuffle ? "shuffle-list" : "sequential";
+                    Plugin.Log.LogInfo($"[Queue] Filled from playlist ({modeName}): {next.AudioClipName}, new position: {PlaylistPosition}");
+                    break;
                 }
-                
-                if (next == null)
-                {
-                    Plugin.Log.LogWarning("[Queue] Cannot fill: all songs are excluded");
-                    return null;
-                }
+                Plugin.Log.LogDebug($"[Queue] Skipping excluded song at index {index}: {candidate.AudioClipName}");
             }
-            else
+
+            if (next == null)
             {
-                // 顺序模式：从播放指针位置开始遍历，跳过排除的歌曲
-                // 参考游戏原版 MusicService.GetNextGameAudio 的逻辑
-                for (int i = 0; i < playlistCount; i++)
-                {
-                    int index = (PlaylistPosition + i) % playlistCount;
-                    var candidate = currentPlaylist[index];
-                    
-                    bool isExcluded = isExcludedFunc?.Invoke(candidate) ?? false;
-                    if (!isExcluded)
-                    {
-                        next = candidate;
-                        // 播放指针移到下一个位置
-                        PlaylistPosition = (index + 1) % playlistCount;
-                        OnPlaylistPositionChanged?.Invoke(PlaylistPosition);
-                        Plugin.Log.LogInfo($"[Queue] Filled from playlist (sequential): {next.AudioClipName}, new position: {PlaylistPosition}");
-                        break;
-                    }
-                    Plugin.Log.LogDebug($"[Queue] Sequential: skipping excluded song at index {index}: {candidate.AudioClipName}");
-                }
-                
-                if (next == null)
-                {
-                    Plugin.Log.LogWarning("[Queue] Cannot fill: all songs are excluded");
-                    return null;
-                }
+                Plugin.Log.LogWarning("[Queue] Cannot fill: all songs are excluded");
+                return null;
             }
-            
+
             // 添加到队列
             _queue.Add(next);
             // 添加到历史记录
             AddToHistory(next);
             OnCurrentChanged?.Invoke(next);
             OnQueueChanged?.Invoke();
-            
+
             return next;
         }
-        
+
         /// <summary>
         /// 从播放列表补充一首到队列（异步版本，支持增长列表）
         /// </summary>
@@ -851,8 +822,8 @@ namespace ChillPatcher.UIFramework.Music
         /// <param name="isExcludedFunc">检查歌曲是否被排除的函数</param>
         /// <param name="getUpdatedPlaylistFunc">获取更新后播放列表的函数</param>
         private async Task<GameAudioInfo> FillFromPlaylistAsync(
-            IReadOnlyList<GameAudioInfo> currentPlaylist, 
-            bool isShuffle, 
+            IReadOnlyList<GameAudioInfo> currentPlaylist,
+            bool isShuffle,
             Func<GameAudioInfo, bool> isExcludedFunc,
             Func<IReadOnlyList<GameAudioInfo>> getUpdatedPlaylistFunc)
         {
@@ -861,21 +832,22 @@ namespace ChillPatcher.UIFramework.Music
                 Plugin.Log.LogWarning("[Queue] Cannot fill: playlist is empty");
                 return null;
             }
-            
+
             GameAudioInfo next = null;
             int playlistCount = currentPlaylist.Count;
-            
+
             // 检查是否在增长列表模式，以及是否接近末尾
+            // 注意：当洗牌模式下，如果支持无限滚动，也应当正常加载
             bool isGrowableMode = MusicUI_VirtualScroll_Patch.IsInGrowableListMode();
             bool isNearEnd = !isShuffle && (PlaylistPosition >= playlistCount - 2 || PlaylistPosition == 0);
-            
+
             // 如果是增长列表且接近末尾，先触发加载更多
             if (isGrowableMode && isNearEnd)
             {
                 Plugin.Log.LogInfo($"[Queue] 顺序播放接近增长列表末尾 (position={PlaylistPosition}, count={playlistCount})，触发加载更多...");
-                
+
                 var loadedCount = await MusicUI_VirtualScroll_Patch.TriggerLoadMoreAsync();
-                
+
                 if (loadedCount > 0 && getUpdatedPlaylistFunc != null)
                 {
                     // 获取更新后的播放列表
@@ -884,78 +856,50 @@ namespace ChillPatcher.UIFramework.Music
                     Plugin.Log.LogInfo($"[Queue] 列表已更新，新数量: {playlistCount}");
                 }
             }
-            
-            if (isShuffle)
+
+            // 修复：同上，移除随机选取逻辑，统一按顺序遍历
+            for (int i = 0; i < playlistCount; i++)
             {
-                // 随机模式：随机选一首，如果被排除则重试
-                var random = new System.Random();
-                
-                for (int attempt = 0; attempt < playlistCount; attempt++)
+                int index = (PlaylistPosition + i) % playlistCount;
+                var candidate = currentPlaylist[index];
+
+                bool isExcluded = isExcludedFunc?.Invoke(candidate) ?? false;
+                if (!isExcluded)
                 {
-                    int randomIndex = random.Next(playlistCount);
-                    var candidate = currentPlaylist[randomIndex];
-                    
-                    bool isExcluded = isExcludedFunc?.Invoke(candidate) ?? false;
-                    if (!isExcluded)
+                    next = candidate;
+                    // 如果是增长列表且到达末尾，不取模
+                    if (isGrowableMode && index == playlistCount - 1 && !isShuffle)
                     {
-                        next = candidate;
-                        PlaylistPosition = (randomIndex + 1) % playlistCount;
-                        OnPlaylistPositionChanged?.Invoke(PlaylistPosition);
-                        Plugin.Log.LogInfo($"[Queue] Filled from playlist (shuffle): {next.AudioClipName}, new position: {PlaylistPosition}");
-                        break;
+                        // 不设置新位置，保持在末尾等待下次加载
+                        PlaylistPosition = index + 1;  // 可能超过 Count，下次加载后就不会取模回0
                     }
-                }
-                
-                if (next == null)
-                {
-                    Plugin.Log.LogWarning("[Queue] Cannot fill: all songs are excluded");
-                    return null;
+                    else
+                    {
+                        PlaylistPosition = (index + 1) % playlistCount;
+                    }
+                    OnPlaylistPositionChanged?.Invoke(PlaylistPosition);
+
+                    string modeName = isShuffle ? "shuffle-list" : "sequential";
+                    Plugin.Log.LogInfo($"[Queue] Filled from playlist ({modeName}): {next.AudioClipName}, new position: {PlaylistPosition}");
+                    break;
                 }
             }
-            else
+
+            if (next == null)
             {
-                // 顺序模式
-                for (int i = 0; i < playlistCount; i++)
-                {
-                    int index = (PlaylistPosition + i) % playlistCount;
-                    var candidate = currentPlaylist[index];
-                    
-                    bool isExcluded = isExcludedFunc?.Invoke(candidate) ?? false;
-                    if (!isExcluded)
-                    {
-                        next = candidate;
-                        // 如果是增长列表且到达末尾，不取模
-                        if (isGrowableMode && index == playlistCount - 1)
-                        {
-                            // 不设置新位置，保持在末尾等待下次加载
-                            PlaylistPosition = index + 1;  // 可能超过 Count，下次加载后就不会取模回0
-                        }
-                        else
-                        {
-                            PlaylistPosition = (index + 1) % playlistCount;
-                        }
-                        OnPlaylistPositionChanged?.Invoke(PlaylistPosition);
-                        Plugin.Log.LogInfo($"[Queue] Filled from playlist (sequential): {next.AudioClipName}, new position: {PlaylistPosition}");
-                        break;
-                    }
-                }
-                
-                if (next == null)
-                {
-                    Plugin.Log.LogWarning("[Queue] Cannot fill: all songs are excluded");
-                    return null;
-                }
+                Plugin.Log.LogWarning("[Queue] Cannot fill: all songs are excluded");
+                return null;
             }
-            
+
             // 添加到队列
             _queue.Add(next);
             AddToHistory(next);
             OnCurrentChanged?.Invoke(next);
             OnQueueChanged?.Invoke();
-            
+
             return next;
         }
-        
+
         /// <summary>
         /// 更新播放指针位置
         /// </summary>
@@ -965,14 +909,14 @@ namespace ChillPatcher.UIFramework.Music
             OnPlaylistPositionChanged?.Invoke(PlaylistPosition);
             Plugin.Log.LogInfo($"[Queue] Playlist position set to: {position}");
         }
-        
+
         /// <summary>
         /// 根据歌曲在播放列表中的位置更新播放指针
         /// </summary>
         public void SetPlaylistPositionByAudio(GameAudioInfo audio, IReadOnlyList<GameAudioInfo> currentPlaylist)
         {
             if (audio == null || currentPlaylist == null) return;
-            
+
             int index = -1;
             for (int i = 0; i < currentPlaylist.Count; i++)
             {
@@ -982,7 +926,7 @@ namespace ChillPatcher.UIFramework.Music
                     break;
                 }
             }
-            
+
             if (index >= 0)
             {
                 // 设置为下一个位置
@@ -991,11 +935,11 @@ namespace ChillPatcher.UIFramework.Music
                 Plugin.Log.LogInfo($"[Queue] Position set by audio: {audio.AudioClipName}, new position: {PlaylistPosition}");
             }
         }
-        
+
         #endregion
-        
+
         #region 序列化/持久化支持
-        
+
         /// <summary>
         /// 获取队列中所有歌曲的 UUID 列表（用于保存）
         /// </summary>
@@ -1003,7 +947,7 @@ namespace ChillPatcher.UIFramework.Music
         {
             return _queue.Select(a => a.UUID).ToList();
         }
-        
+
         /// <summary>
         /// 获取历史中所有歌曲的 UUID 列表（用于保存）
         /// </summary>
@@ -1011,16 +955,16 @@ namespace ChillPatcher.UIFramework.Music
         {
             return _history.Select(a => a.UUID).ToList();
         }
-        
+
         /// <summary>
         /// 从 UUID 列表恢复队列
         /// </summary>
         public void RestoreFromUUIDs(IEnumerable<string> uuids, IReadOnlyList<GameAudioInfo> allMusic)
         {
             if (uuids == null || allMusic == null) return;
-            
+
             _queue.Clear();
-            
+
             foreach (var uuid in uuids)
             {
                 var audio = allMusic.FirstOrDefault(a => a.UUID == uuid);
@@ -1029,25 +973,25 @@ namespace ChillPatcher.UIFramework.Music
                     _queue.Add(audio);
                 }
             }
-            
+
             OnQueueChanged?.Invoke();
             if (_queue.Count > 0)
             {
                 OnCurrentChanged?.Invoke(_queue[0]);
             }
-            
+
             Plugin.Log.LogInfo($"[Queue] Restored {_queue.Count} songs from UUIDs");
         }
-        
+
         /// <summary>
         /// 从 UUID 列表恢复历史
         /// </summary>
         public void RestoreHistoryFromUUIDs(IEnumerable<string> uuids, IReadOnlyList<GameAudioInfo> allMusic)
         {
             if (uuids == null || allMusic == null) return;
-            
+
             _history.Clear();
-            
+
             foreach (var uuid in uuids)
             {
                 var audio = allMusic.FirstOrDefault(a => a.UUID == uuid);
@@ -1056,10 +1000,10 @@ namespace ChillPatcher.UIFramework.Music
                     _history.Add(audio);
                 }
             }
-            
+
             Plugin.Log.LogInfo($"[Queue] Restored {_history.Count} history entries from UUIDs");
         }
-        
+
         /// <summary>
         /// 恢复播放状态（队列、历史、位置等）
         /// </summary>
@@ -1076,27 +1020,27 @@ namespace ChillPatcher.UIFramework.Music
                 Plugin.Log.LogWarning("[Queue] Cannot restore state: allMusic is null");
                 return;
             }
-            
+
             // 恢复队列
             if (queueUUIDs != null)
             {
                 RestoreFromUUIDs(queueUUIDs, allMusic);
             }
-            
+
             // 恢复历史
             if (historyUUIDs != null)
             {
                 RestoreHistoryFromUUIDs(historyUUIDs, allMusic);
             }
-            
+
             // 恢复位置
             PlaylistPosition = playlistPosition;
             _historyPosition = historyPosition;
             _extendedSteps = extendedSteps;
-            
+
             Plugin.Log.LogInfo($"[Queue] Full state restored: Queue={_queue.Count}, History={_history.Count}, Position={playlistPosition}, HistoryPos={historyPosition}, ExtSteps={extendedSteps}");
         }
-        
+
         #endregion
     }
 }
